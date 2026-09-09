@@ -1,0 +1,390 @@
+// Derived numbers.
+//
+// Everything the dashboards display is computed here from the record
+// collections, never stored as a standalone figure. That is the whole point:
+// a number nobody can type is a number nobody can argue with.
+
+import type {
+  Channel,
+  ContentPiece,
+  DailyLog,
+  Deal,
+  Lead,
+  OpsItem,
+  Property,
+  Shoot,
+  Staff,
+  Target,
+  Thread,
+} from './types'
+import { isWeekend, onDay, pct } from './format'
+
+/** Operations' response-time commitment, in minutes. */
+export const SLA_MINUTES = 30
+
+/**
+ * The definition settled in the "What counts as a qualified lead?" thread:
+ * budget confirmed, timeline stated, specific property or service named.
+ * Marketing and the GM read this same flag so the two numbers cannot drift.
+ */
+export function isQualified(lead: Lead): boolean {
+  return lead.qualified
+}
+
+export function isOpenDeal(deal: Deal): boolean {
+  return deal.stage !== 'LOST' && deal.stage !== 'PUBLISHED'
+}
+
+export function isWonDeal(deal: Deal): boolean {
+  return deal.stage === 'MANDATE_SIGNED' || deal.stage === 'PUBLISHED'
+}
+
+export function dealIsStale(deal: Deal, days = 7, now = new Date()): boolean {
+  if (deal.stage === 'LOST') return false
+  const ms = now.getTime() - new Date(deal.lastActivityAt).getTime()
+  return ms > days * 86_400_000
+}
+
+export function dealActionOverdue(deal: Deal, now = new Date()): boolean {
+  if (!deal.nextActionAt || deal.stage === 'LOST') return false
+  return new Date(deal.nextActionAt).getTime() < now.getTime()
+}
+
+/** A property is publishable only when it has photos and all four documents. */
+export function publishBlockers(property: Property): string[] {
+  const blockers: string[] = []
+  if (property.photoCount === 0) blockers.push('No photos')
+  else if (property.photoCount < 8) blockers.push('Under 8 photos')
+  const missing = property.documents.filter((d) => !d.present)
+  if (missing.length > 0) blockers.push(`${missing.length} document(s) missing`)
+  const unverified = property.documents.filter((d) => d.present && !d.verified)
+  if (unverified.length > 0) {
+    blockers.push(`${unverified.length} document(s) unverified`)
+  }
+  return blockers
+}
+
+export function isPublishable(property: Property): boolean {
+  return publishBlockers(property).length === 0
+}
+
+export function documentCompletion(property: Property): number {
+  return pct(
+    property.documents.filter((d) => d.present && d.verified).length,
+    property.documents.length,
+  )
+}
+
+/** Leads answered inside the SLA, as a percentage of those answered at all. */
+export function slaCompliance(leads: Lead[]): number {
+  const answered = leads.filter((l) => l.firstResponseMins !== null)
+  if (answered.length === 0) return 100
+  const inTime = answered.filter((l) => (l.firstResponseMins ?? 0) <= SLA_MINUTES)
+  return pct(inTime.length, answered.length)
+}
+
+/** Leads with no response yet — the queue Operations is measured on. */
+export function unanswered(leads: Lead[]): Lead[] {
+  return leads.filter((l) => l.firstResponseMins === null)
+}
+
+/** Qualified → converted. The number the GM carries. */
+export function conversionRate(leads: Lead[]): number {
+  const qualified = leads.filter(isQualified)
+  if (qualified.length === 0) return 0
+  return pct(qualified.filter((l) => l.status === 'CONVERTED').length, qualified.length)
+}
+
+export interface CompanySnapshot {
+  // Inventory
+  propertiesTotal: number
+  propertiesPublished: number
+  propertiesPending: number
+  propertiesVerified: number
+  propertiesBlocked: number
+  unitsAvailable: number
+  unitsSold: number
+
+  // Pipeline
+  dealsOpen: number
+  dealsWon: number
+  mandatesSigned: number
+  exclusiveMandates: number
+  pipelineValue: number
+  dealsStale: number
+
+  // Demand
+  leadsTotal: number
+  leadsQualified: number
+  leadsUnanswered: number
+  leadsConverted: number
+  conversion: number
+  sla: number
+
+  // Content
+  videosPublished: number
+  contentPublished: number
+  leadsFromContent: number
+
+  // Operations
+  opsOpen: number
+  opsUnassigned: number
+  opsUrgent: number
+  moneyAwaitingPayout: number
+}
+
+export function companySnapshot(input: {
+  properties: Property[]
+  deals: Deal[]
+  leads: Lead[]
+  shoots: Shoot[]
+  content: ContentPiece[]
+  ops: OpsItem[]
+}): CompanySnapshot {
+  const { properties, deals, leads, shoots, content, ops } = input
+
+  const openOps = ops.filter((o) => !o.resolved)
+
+  return {
+    propertiesTotal: properties.length,
+    propertiesPublished: properties.filter((p) => p.status === 'ACTIVE').length,
+    propertiesPending: properties.filter((p) => p.status === 'PENDING_REVIEW').length,
+    propertiesVerified: properties.filter((p) => p.verified).length,
+    propertiesBlocked: properties.filter(
+      (p) => p.status === 'PENDING_REVIEW' && !isPublishable(p),
+    ).length,
+    unitsAvailable: properties.reduce((n, p) => n + (p.units - p.unitsSold), 0),
+    unitsSold: properties.reduce((n, p) => n + p.unitsSold, 0),
+
+    dealsOpen: deals.filter(isOpenDeal).length,
+    dealsWon: deals.filter(isWonDeal).length,
+    mandatesSigned: deals.filter((d) => d.mandate !== 'NONE').length,
+    exclusiveMandates: deals.filter((d) => d.mandate === 'EXCLUSIVE').length,
+    pipelineValue: deals.filter(isOpenDeal).reduce((n, d) => n + d.valueNaira, 0),
+    dealsStale: deals.filter((d) => dealIsStale(d)).length,
+
+    leadsTotal: leads.length,
+    leadsQualified: leads.filter(isQualified).length,
+    leadsUnanswered: unanswered(leads).length,
+    leadsConverted: leads.filter((l) => l.status === 'CONVERTED').length,
+    conversion: conversionRate(leads),
+    sla: slaCompliance(leads),
+
+    videosPublished: shoots.filter((s) => s.stage === 'PUBLISHED').length,
+    contentPublished: content.filter((c) => c.publishedAt !== null).length,
+    leadsFromContent: content.reduce((n, c) => n + c.leadsGenerated, 0),
+
+    opsOpen: openOps.length,
+    opsUnassigned: openOps.filter((o) => o.assigneeId === null).length,
+    opsUrgent: openOps.filter((o) => o.urgent).length,
+    moneyAwaitingPayout: openOps
+      .filter((o) => o.kind === 'WITHDRAWAL')
+      .reduce((n, o) => n + (o.amountNaira ?? 0), 0),
+  }
+}
+
+/** Progress against the lower bound of a target range, capped at 100. */
+export function targetProgress(target: Target): number {
+  if (target.ceiling) {
+    // A ceiling is met by staying at or under the number, so anything within
+    // it is 100% — not a fraction of it. Going over falls away from there.
+    if (target.max === 0) return target.actual === 0 ? 100 : 0
+    if (target.actual <= target.max) return 100
+    const overshoot = (target.actual - target.max) / target.max
+    return Math.max(0, Math.round((1 - overshoot) * 100))
+  }
+  if (target.min === 0) return 100
+  return Math.min(100, Math.round((target.actual / target.min) * 100))
+}
+
+export function targetMet(target: Target): boolean {
+  return targetProgress(target) >= 100
+}
+
+/** Average progress across a staff member's targets — their scorecard number. */
+export function staffScore(targets: Target[], staffId: string): number | null {
+  const own = targets.filter((t) => t.staffId === staffId)
+  if (own.length === 0) return null
+  const total = own.reduce((n, t) => n + targetProgress(t), 0)
+  return Math.round(total / own.length)
+}
+
+export interface StaffSummary {
+  staff: Staff
+  score: number | null
+  targetsMet: number
+  targetsTotal: number
+  propertiesSourced: number
+  dealsOwned: number
+  leadsOwned: number
+  opsAssigned: number
+}
+
+export function staffSummary(
+  staff: Staff,
+  input: {
+    targets: Target[]
+    properties: Property[]
+    deals: Deal[]
+    leads: Lead[]
+    ops: OpsItem[]
+  },
+): StaffSummary {
+  const own = input.targets.filter((t) => t.staffId === staff.id)
+  return {
+    staff,
+    score: staffScore(input.targets, staff.id),
+    targetsMet: own.filter(targetMet).length,
+    targetsTotal: own.length,
+    propertiesSourced: input.properties.filter((p) => p.sourcedById === staff.id).length,
+    dealsOwned: input.deals.filter((d) => d.ownerId === staff.id && isOpenDeal(d)).length,
+    leadsOwned: input.leads.filter(
+      (l) => l.ownerId === staff.id && l.status !== 'CONVERTED' && l.status !== 'LOST',
+    ).length,
+    opsAssigned: input.ops.filter((o) => o.assigneeId === staff.id && !o.resolved).length,
+  }
+}
+
+/* ─── Shoot preparation ──────────────────────────────────────────────── */
+// The Secretary's target is every shoot prepped 24 hours ahead. These live
+// here rather than in the component so the time lookup stays out of render.
+
+const ONE_DAY = 86_400_000
+
+/** Prep was finished less than 24h before the shoot, or never finished. */
+export function shootPrepLate(shoot: Shoot, now: Date = new Date()): boolean {
+  if (!shoot.scheduledFor) return false
+  const scheduled = new Date(shoot.scheduledFor).getTime()
+  if (!shoot.prepCompleteAt) return scheduled < now.getTime()
+  return scheduled - new Date(shoot.prepCompleteAt).getTime() < ONE_DAY
+}
+
+/** Shoot is inside its 24h window and still has no prep recorded. */
+export function shootPrepOverdue(shoot: Shoot, now: Date = new Date()): boolean {
+  if (!shoot.scheduledFor || shoot.prepCompleteAt) return false
+  return new Date(shoot.scheduledFor).getTime() - now.getTime() < ONE_DAY
+}
+
+/* ─── Daily activity ─────────────────────────────────────────────────── */
+// What the RECORDS say a person did on a given day, independent of what they
+// wrote in their log. Shown beside the written entry so a manager reads the
+// narrative and the evidence together rather than one or the other.
+
+export interface DayActivity {
+  propertiesSubmitted: number
+  propertiesPublished: number
+  dealsAdvanced: number
+  leadsContacted: number
+  shootsPrepped: number
+  videosPublished: number
+  threadMessages: number
+  /** Sum of the above — zero means the records show nothing that day. */
+  total: number
+}
+
+export function dayActivity(
+  staffId: string,
+  day: string,
+  input: {
+    properties: Property[]
+    deals: Deal[]
+    leads: Lead[]
+    shoots: Shoot[]
+    threads: Thread[]
+  },
+): DayActivity {
+  const propertiesSubmitted = input.properties.filter(
+    (p) => p.sourcedById === staffId && onDay(p.submittedAt, day),
+  ).length
+
+  const propertiesPublished = input.properties.filter(
+    (p) => p.sourcedById === staffId && p.publishedAt && onDay(p.publishedAt, day),
+  ).length
+
+  const dealsAdvanced = input.deals.filter(
+    (d) => d.ownerId === staffId && onDay(d.lastActivityAt, day),
+  ).length
+
+  const leadsContacted = input.leads.filter(
+    (l) => l.ownerId === staffId && l.lastContactAt && onDay(l.lastContactAt, day),
+  ).length
+
+  const shootsPrepped = input.shoots.filter(
+    (s) => s.secretaryId === staffId && s.prepCompleteAt && onDay(s.prepCompleteAt, day),
+  ).length
+
+  const videosPublished = input.shoots.filter(
+    (s) => s.presenterId === staffId && s.publishedAt && onDay(s.publishedAt, day),
+  ).length
+
+  const threadMessages = input.threads.reduce(
+    (n, t) =>
+      n +
+      t.messages.filter((m) => m.authorId === staffId && onDay(m.createdAt, day))
+        .length,
+    0,
+  )
+
+  const total =
+    propertiesSubmitted +
+    propertiesPublished +
+    dealsAdvanced +
+    leadsContacted +
+    shootsPrepped +
+    videosPublished +
+    threadMessages
+
+  return {
+    propertiesSubmitted,
+    propertiesPublished,
+    dealsAdvanced,
+    leadsContacted,
+    shootsPrepped,
+    videosPublished,
+    threadMessages,
+    total,
+  }
+}
+
+/** Working days in the window where someone filed nothing. */
+export function missedLogDays(
+  staffId: string,
+  logs: DailyLog[],
+  days: string[],
+): string[] {
+  return days.filter(
+    (d) => !isWeekend(d) && !logs.some((l) => l.staffId === staffId && l.date === d),
+  )
+}
+
+/* ─── Messaging ──────────────────────────────────────────────────────── */
+
+/** Messages in a channel after the reader last opened it, excluding their own. */
+export function unreadCount(channel: Channel, staffId: string): number {
+  const since = channel.lastReadAt[staffId]
+  return channel.messages.filter(
+    (m) =>
+      m.authorId !== staffId &&
+      (!since || new Date(m.createdAt).getTime() > new Date(since).getTime()),
+  ).length
+}
+
+export function totalUnread(channels: Channel[], staffId: string): number {
+  return channels
+    .filter((c) => c.memberIds.includes(staffId))
+    .reduce((n, c) => n + unreadCount(c, staffId), 0)
+}
+
+/** The other member of a direct channel. */
+export function directCounterpart(
+  channel: Channel,
+  staffId: string,
+): string | null {
+  if (channel.kind !== 'DIRECT') return null
+  return channel.memberIds.find((id) => id !== staffId) ?? null
+}
+
+export function lastMessageAt(channel: Channel): number {
+  const last = channel.messages[channel.messages.length - 1]
+  return new Date(last?.createdAt ?? channel.createdAt).getTime()
+}

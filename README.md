@@ -1,0 +1,205 @@
+# PropertyLoop — Team Portal
+
+Internal staff portal for the September 2026 organisational structure. React 19
++ Vite + Tailwind 4, matching the public site's brand tokens.
+
+```bash
+npm run dev      # http://localhost:5175
+npm run build    # tsc -b && vite build
+npm run lint
+```
+
+## This is a frontend shell
+
+There is **no backend**. Every number, name, property and message is invented
+sample data in [`src/lib/seed.ts`](src/lib/seed.ts). Nothing here should ever be
+quoted as a real PropertyLoop figure.
+
+Sign-in is a role picker, not authentication — the backend has no staff accounts
+to authenticate against. Picking a person shows the portal as that role would
+see it, which is what makes the permission boundaries reviewable before they are
+built.
+
+State lives in `localStorage` under `pl-team.*`, so edits survive a reload and
+clearing site data resets everything.
+
+## Two things must land in the API before real logins
+
+**1. Staff roles and permissions.** The backend `Role` enum is
+`BUYER | AGENT | VENDOR | ADMIN` — there is no staff concept — and every handler
+in `AdminController` runs the same check:
+
+```ts
+if (role !== Role.ADMIN) throw new ForbiddenException(...)
+```
+
+Giving these nine people staff accounts today means nine identical, total
+logins: suspend any user, change any listing's status, approve withdrawals,
+resolve escrow disputes, read KYC documents. [`src/lib/permissions.ts`](src/lib/permissions.ts)
+describes the intended per-position access. It shapes this UI only — **a hidden
+button is not an enforced rule**. The backend half is a `StaffProfile` table
+(`userId`, `staffRole`, `permissions String[]`) replacing `checkAdminAccess`.
+
+**2. Sourcing attribution on listings.** `Listing` has `agentId` — who owns the
+listing — but no record of which staff member *brought it in*. So "Ola listed 14
+properties this month" cannot be verified from the product database. The
+`sourcedById` field used throughout the Properties screen is the field to add.
+
+## What is a copy and what is not
+
+Anything the product database already owns is **mirrored, not duplicated** —
+`ListingStatus`, `LeadStatus`, `LeadSource` and `DocumentType` use values
+identical to the Prisma schema, because Postgres stays the authority on what is
+actually published. If "published" means something different here than on
+propertyloop.ng, the number is fiction.
+
+Anything with **no** backend model lives here for real, and that is the gap this
+portal fills:
+
+| Screen | Backing |
+| --- | --- |
+| Deals & mandates | **No Prisma model** — developers, advertisers, facility-management and building-finishing clients are not modelled anywhere |
+| Properties | Mirrors `Listing` (+ the missing `sourcedById`) |
+| Leads | Mirrors `Lead` |
+| Content & shoots | **No Prisma model** — the video production line |
+| Operations | Reads `KycSubmission`, `WithdrawalRequest`, `Report`, `JobDisputeMessage` |
+| Threads | Maps onto `Conversation` / `Message`, plus an `isInternal` flag |
+| Messages | Same tables — `ConversationParticipant.lastReadAt` already carries the read state |
+| Daily log | **No Prisma model** |
+| Targets / Team | **No Prisma model** |
+
+## What can be created, and what cannot
+
+Four things can be created in the portal, and the list is deliberate
+([`src/components/forms.tsx`](src/components/forms.tsx)):
+
+| Create | Why here |
+| --- | --- |
+| **Property** | Developer inventory arrives as a spreadsheet and a folder of photos, not through the public add-listing flow |
+| **Offline lead** | Calls, walk-ins and referrals leave no trace otherwise |
+| **Deal** | No backend model exists at all — this is the only record of it |
+| **Internal task** | Work the platform does not know about |
+
+**KYC reviews, payouts, reports, disputes and listing reviews cannot be created
+by hand.** Those rows are projections of `KycSubmission`, `WithdrawalRequest`,
+`Report` and `JobDisputeMessage`. A hand-made one would be a task with nothing
+behind it that somebody could mark resolved without any money moving or any
+document being checked. `DERIVED_OPS_KINDS` in `types.ts` names them; only
+`TASK` is hand-created, and it is labelled `manual` in the queue.
+
+Three rules the forms enforce:
+
+- A new property is filed `PENDING_REVIEW` with documents marked **received but
+  unverified**, so it cannot walk through the publish gate in one step. Even
+  with all four documents and twenty photos it still reads "4 documents
+  unverified".
+- `sourcedById` is taken from who is signed in, never chosen from a dropdown —
+  that is what makes the acquisition figure a fact rather than a claim.
+- Website leads are not offerable. Only `PHONE`, `REFERRAL`, `EMAIL` and
+  `OTHER` appear, because `LISTING_PAGE` and `AGENT_PROFILE` rows are written
+  by the platform; typing one in would duplicate the record and start the
+  response clock from when somebody got round to it. A logged offline lead
+  starts `CONTACTED` with the SLA clock stopped, since the conversation has
+  already happened.
+
+## Daily logs pair writing with evidence
+
+Each person files one entry per calendar day — what they did, what is blocking
+them, what is next. Beside it the portal shows `dayActivity()`: properties
+submitted, deals advanced, leads contacted, shoots prepped, counted from the
+records for that same day.
+
+That pairing is the whole design. A written log on its own measures how
+diligently somebody reports. Read next to what the records hold, it becomes
+reviewable — and where the two disagree, that gap is the conversation worth
+having. A day with no recorded activity is not automatically a bad day;
+meetings, calls and travel leave no trace in a database, which is exactly why
+the written entry still matters.
+
+Managers (`VIEW_ALL_LOGS` — MD/CEO and GM) get a team view for any day, showing
+who has not filed and surfacing blockers first. Weekends are excluded from the
+missed-day count.
+
+## Messages vs Threads
+
+Two different things, deliberately kept apart:
+
+- **Messages** — ordinary conversation. One all-staff group everybody belongs
+  to, plus one-to-one with any colleague, created on demand. Unread counts are
+  per person, from `lastReadAt`.
+- **Threads** — discussion pinned to a specific property, deal, lead or shoot,
+  so the reasoning survives next to the record it was about.
+
+Anything that changes a record's state belongs on that record's thread. Chatter
+belongs in Messages.
+
+## Threads are not a team chat
+
+Deliberately. WhatsApp is better at chat and everyone is already there — keep
+"where are you" in WhatsApp. What belongs here is the reasoning that has to stay
+next to a record: why a listing was held, what was agreed on a mandate.
+`Conversation` already carries an optional `listingId`, so this maps onto the
+existing messaging tables.
+
+One trap when wiring it up: `MessagesService.listConversations(userId)` returns
+**every** conversation a user participates in, unfiltered. Without an
+`isInternal` flag and a filter, staff threads will appear in the customer inbox.
+
+## Two contradictions carried over from the org document
+
+Both are surfaced in the UI rather than smoothed over, because the portal cannot
+resolve them — people have to.
+
+- **150–200 qualified leads/month at 25% conversion = 37–50 closed deals**,
+  against a target of 8–12 mandates. Both cannot be true. Qualification is
+  therefore one explicit shared flag: budget confirmed, timeline stated, and a
+  specific property or service named. All three, or it is an enquiry.
+- **Nobody owns platform operations.** Seven commercial positions, and none
+  assigned to KYC review, user reports, feed moderation, escrow disputes, or
+  withdrawals — which are a person manually transferring money out. The
+  Operations screen shows the unassigned count on purpose.
+
+## Look and feel
+
+One hue per area of the business, defined once in
+[`src/lib/accent.ts`](src/lib/accent.ts) and carried from the sidebar icon
+through to the page header and its stat tiles:
+
+| Hue | Area |
+| --- | --- |
+| Green | Inventory — properties, published listings |
+| Gold | Money — deals, mandates, targets |
+| Blue | Demand — leads, the team |
+| Violet | Content — shoots, daily logs |
+| Rose | Anything wrong — operations, unassigned work, overdue |
+| Teal | Conversation — threads and messages |
+
+Colour carries meaning rather than decoration: a screen is recognisable before
+you read its title, and `tone` on a `Stat` always overrides the section hue so a
+bad number reads red wherever it appears.
+
+Avatars take a stable colour hashed from the staff id, so the same person is the
+same colour in every list. Motion is short (~0.34s) and plays once per mount —
+`.pl-rise` for entrances, `.pl-stagger` for grids — and everything collapses to
+nothing under `prefers-reduced-motion`.
+
+## Structure
+
+```
+src/
+├── lib/
+│   ├── types.ts          domain types; schema mirrors marked in comments
+│   ├── accent.ts         the colour system — one hue per business area
+│   ├── permissions.ts    per-position access (UI-only until the API catches up)
+│   ├── seed.ts           commercial sample data — properties, deals, leads
+│   ├── seedCollab.ts     daily logs and channel messages
+│   ├── store.tsx         StoreProvider; each mutator is the shape of one HTTP call
+│   ├── storeContext.ts   context + useStore / useCurrentUser
+│   ├── metrics.ts        every displayed number is derived here, never stored
+│   └── format.ts         naira, dates, initials
+├── components/           Layout (permission-aware nav) + ui primitives
+└── pages/                one file per screen
+```
+
+`src/lib/store.tsx` is the seam for the API: replacing it with an axios service
+layer should not require touching a single screen.

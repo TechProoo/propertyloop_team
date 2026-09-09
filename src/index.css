@@ -1,0 +1,196 @@
+@import "tailwindcss";
+
+@theme {
+  /* Fonts — same stack as the public site */
+  --font-heading: "Libre Franklin", sans-serif;
+  --font-display: "Playfair Display", Georgia, serif;
+  --font-body: "Libre Franklin", sans-serif;
+
+  /* Brand */
+  --color-primary: #1f6f43;
+  --color-primary-dark: #143520;
+  --color-primary-light: #2d8a55;
+  --color-primary-muted: #4a7a5c;
+  --color-primary-ink: #0f4429;
+  --color-primary-soft: #dff0e5;
+
+  --color-accent: #c08a2e;
+  --color-accent-soft: #fbeed4;
+  --color-accent-ink: #7a5514;
+
+  /* Ink */
+  --color-ink: #16201c;
+  --color-ink-2: #48544f;
+  --color-ink-3: #7d8a84;
+
+  /* Surfaces */
+  --color-bg: #f4f7f4;
+  --color-surface: #ffffff;
+  --color-surface-2: #eaeee9;
+  --color-line: #dee5df;
+
+  /* ── Categorical hues ────────────────────────────────────────────────
+     One per area of the business, so a screen is recognisable by colour
+     before you read its title. Each has a saturated tone for marks, a soft
+     tint for fills, and a dark ink that stays legible on the tint. */
+
+  --color-green: #1f6f43;
+  --color-green-soft: #dff0e5;
+  --color-green-ink: #0f4429;
+
+  --color-gold: #c08a2e;
+  --color-gold-soft: #fbeed4;
+  --color-gold-ink: #7a5514;
+
+  --color-blue: #2f6fb4;
+  --color-blue-soft: #dfeaf8;
+  --color-blue-ink: #1b4576;
+
+  --color-violet: #7355bd;
+  --color-violet-soft: #e9e3f8;
+  --color-violet-ink: #46337a;
+
+  --color-rose: #c0453a;
+  --color-rose-soft: #fbe2df;
+  --color-rose-ink: #7d2820;
+
+  --color-teal: #0e8583;
+  --color-teal-soft: #d7f0ef;
+  --color-teal-ink: #0a5352;
+
+  /* Status aliases */
+  --color-ok: #1f6f43;
+  --color-warn: #c08a2e;
+  --color-danger: #c0453a;
+  --color-info: #2f6fb4;
+
+  /* Shadows — soft and green-tinted, never neutral grey */
+  --shadow-tile: 0 1px 2px rgba(22, 32, 28, 0.04), 0 4px 12px rgba(22, 32, 28, 0.04);
+  --shadow-lift: 0 2px 4px rgba(22, 32, 28, 0.06), 0 12px 28px rgba(22, 32, 28, 0.09);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* A faint tinted wash so the page is never a flat sheet of grey. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(60rem 40rem at 12% -10%, rgba(31, 111, 67, 0.07), transparent 60%),
+    radial-gradient(50rem 34rem at 92% 4%, rgba(192, 138, 46, 0.07), transparent 62%);
+}
+
+/* Thin, unobtrusive scrollbars — this is a dense internal tool. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line) transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--color-line);
+  border-radius: 8px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ─── Motion ───────────────────────────────────────────────────────────
+   Entrances are short and only ever play once per mount. Anything longer
+   gets tiring in a tool somebody uses all day. */
+
+@keyframes pl-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes pl-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes pl-pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgba(192, 138, 46, 0.5);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(192, 138, 46, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(192, 138, 46, 0);
+  }
+}
+
+@keyframes pl-grow {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.pl-rise {
+  animation: pl-rise 0.34s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.pl-fade {
+  animation: pl-fade 0.3s ease both;
+}
+
+.pl-pulse {
+  animation: pl-pulse-ring 2s ease-out infinite;
+}
+
+/* Staggered entrance for grids and lists. Capped at 8 — past that the last
+   items feel like they are lagging rather than arriving. */
+.pl-stagger > * {
+  animation: pl-rise 0.34s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.pl-stagger > *:nth-child(1) { animation-delay: 0.02s; }
+.pl-stagger > *:nth-child(2) { animation-delay: 0.05s; }
+.pl-stagger > *:nth-child(3) { animation-delay: 0.08s; }
+.pl-stagger > *:nth-child(4) { animation-delay: 0.11s; }
+.pl-stagger > *:nth-child(5) { animation-delay: 0.14s; }
+.pl-stagger > *:nth-child(6) { animation-delay: 0.17s; }
+.pl-stagger > *:nth-child(7) { animation-delay: 0.2s; }
+.pl-stagger > *:nth-child(n + 8) { animation-delay: 0.23s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .pl-rise,
+  .pl-fade,
+  .pl-pulse,
+  .pl-stagger > * {
+    animation: none !important;
+  }
+  * {
+    transition-duration: 0.01ms !important;
+  }
+}
