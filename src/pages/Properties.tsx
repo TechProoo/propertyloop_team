@@ -5,6 +5,7 @@ import {
   Check,
   FileWarning,
   Image,
+  Pencil,
   Plus,
   Rocket,
   Video,
@@ -38,7 +39,8 @@ import {
   TextInput,
 } from '../components/ui'
 import type { BadgeTone } from '../components/ui'
-import { NewPropertyForm } from '../components/forms'
+import { PropertyForm } from '../components/forms'
+import { DiscussButton } from '../components/DiscussButton'
 
 const STATUS_TONE: Record<ListingStatus, BadgeTone> = {
   PENDING_REVIEW: 'warn',
@@ -73,6 +75,7 @@ export function Properties() {
   const [query, setQuery] = useState('')
   const [expanded, setExpanded] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
+  const [editing, setEditing] = useState<Property | null>(null)
 
   const filtered = useMemo(() => {
     return properties.filter((p) => {
@@ -116,7 +119,10 @@ export function Properties() {
         }
       />
 
-      {creating && <NewPropertyForm onClose={() => setCreating(false)} />}
+      {creating && <PropertyForm onClose={() => setCreating(false)} />}
+      {editing && (
+        <PropertyForm existing={editing} onClose={() => setEditing(null)} />
+      )}
 
       <div className="pl-stagger mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Stat
@@ -273,6 +279,20 @@ export function Properties() {
                         )}
                       </Td>
                       <Td className="text-right whitespace-nowrap">
+                        <span className="mr-1.5 inline-flex items-center gap-0.5 align-middle">
+                          <DiscussButton kind="PROPERTY" id={p.id} compact />
+                          {canAdd && (
+                            <button
+                              type="button"
+                              onClick={() => setEditing(p)}
+                              aria-label={`Edit ${p.title}`}
+                              title="Edit"
+                              className="rounded-lg p-1.5 text-ink-3 transition-colors hover:bg-surface-2 hover:text-primary"
+                            >
+                              <Pencil size={13} strokeWidth={2} />
+                            </button>
+                          )}
+                        </span>
                         {p.status === 'PENDING_REVIEW' &&
                           (blockers.length === 0 ? (
                             canPublish ? (

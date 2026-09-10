@@ -1,5 +1,13 @@
 import { useMemo, useState } from 'react'
-import { CheckCheck, ClipboardList, Clock, Plus, Star, Timer } from 'lucide-react'
+import {
+  CheckCheck,
+  ClipboardList,
+  Clock,
+  Pencil,
+  Plus,
+  Star,
+  Timer,
+} from 'lucide-react'
 import { useCurrentUser, useStore } from '../lib/storeContext'
 import { can } from '../lib/permissions'
 import { SLA_MINUTES, conversionRate, slaCompliance, unanswered } from '../lib/metrics'
@@ -9,7 +17,7 @@ import {
   LEAD_STATUS_LABEL,
   LEAD_STATUS_ORDER,
 } from '../lib/types'
-import type { LeadStatus } from '../lib/types'
+import type { Lead, LeadStatus } from '../lib/types'
 import {
   Badge,
   Button,
@@ -26,7 +34,8 @@ import {
   TextInput,
 } from '../components/ui'
 import type { BadgeTone } from '../components/ui'
-import { NewLeadForm } from '../components/forms'
+import { LeadForm } from '../components/forms'
+import { DiscussButton } from '../components/DiscussButton'
 
 const STATUS_TONE: Record<LeadStatus, BadgeTone> = {
   NEW: 'warn',
@@ -61,6 +70,7 @@ export function Leads() {
   const [onlyQualified, setOnlyQualified] = useState('ALL')
   const [query, setQuery] = useState('')
   const [creating, setCreating] = useState(false)
+  const [editing, setEditing] = useState<Lead | null>(null)
 
   const filtered = useMemo(() => {
     return leads.filter((l) => {
@@ -94,7 +104,8 @@ export function Leads() {
         }
       />
 
-      {creating && <NewLeadForm onClose={() => setCreating(false)} />}
+      {creating && <LeadForm onClose={() => setCreating(false)} />}
+      {editing && <LeadForm existing={editing} onClose={() => setEditing(null)} />}
 
       <div className="pl-stagger mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Stat
@@ -222,6 +233,18 @@ export function Leads() {
                           )
                         )}
                         <span className="font-medium text-ink">{l.name}</span>
+                        <DiscussButton kind="LEAD" id={l.id} compact />
+                        {canManage && (
+                          <button
+                            type="button"
+                            onClick={() => setEditing(l)}
+                            aria-label={`Edit ${l.name}`}
+                            title="Edit"
+                            className="rounded p-1 text-ink-3 transition-colors hover:bg-surface-2 hover:text-primary"
+                          >
+                            <Pencil size={12} strokeWidth={2} />
+                          </button>
+                        )}
                       </span>
                       <span className="mt-0.5 block text-xs text-ink-3">{l.phone}</span>
                       {l.notes && (

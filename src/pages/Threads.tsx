@@ -2,18 +2,21 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Check, MessageSquare, Send } from 'lucide-react'
 import { useCurrentUser, useStore } from '../lib/storeContext'
+import { decodeSubject, encodeSubject, threadsForSubject } from '../lib/metrics'
 import { dateTime, displayName, initials, relative } from '../lib/format'
 import { THREAD_SUBJECT_LABEL } from '../lib/types'
-import type { Thread, ThreadSubject } from '../lib/types'
+import type { Thread, ThreadSubject, ThreadSubjectKind } from '../lib/types'
 import {
   Avatar,
   Badge,
   Button,
   Card,
   Empty,
+  Field,
   Note,
   PageHeader,
   Select,
+  Textarea,
   TextInput,
 } from '../components/ui'
 
@@ -50,18 +53,44 @@ export function Threads() {
   const [params, setParams] = useSearchParams()
   const [filter, setFilter] = useState('MINE')
   const [draft, setDraft] = useState('')
-  const [composing, setComposing] = useState(false)
+
+  // A Discuss button anywhere in the app lands here as ?subject=KIND:ID. It
+  // narrows the list to that record and, when nothing exists yet, opens the
+  // composer already attached to it — so the first thread on a property is
+  // one click from the property, not a form somebody fills in twice.
+  const subjectParam = params.get('subject')
+  const pinned = useMemo(() => decodeSubject(subjectParam), [subjectParam])
+  const pinnedThreads = pinned
+    ? threadsForSubject(threads, pinned.kind, pinned.id)
+    : []
+
+  // Composer visibility is DERIVED, not synced in an effect: open by default
+  // when a record has no threads yet, and an explicit open/close overrides
+  // that — but only for the record it was made on, so arriving at a different
+  // record falls back to the default again.
+  const autoCompose = pinned !== null && pinnedThreads.length === 0
+  const [override, setOverride] = useState<{ key: string; open: boolean } | null>(
+    null,
+  )
+  const subjectKey = subjectParam ?? ''
+  const composing =
+    override && override.key === subjectKey ? override.open : autoCompose
+
+  const setComposing = (open: boolean) => setOverride({ key: subjectKey, open })
 
   const visible = useMemo(() => {
     return threads
       .filter((t) => {
+        if (pinned) {
+          return t.subject.kind === pinned.kind && t.subject.id === pinned.id
+        }
         if (filter === 'MINE' && !t.participantIds.includes(me.id)) return false
         if (filter === 'OPEN' && t.resolved) return false
         if (filter === 'RESOLVED' && !t.resolved) return false
         return true
       })
       .sort((a, b) => lastActivity(b) - lastActivity(a))
-  }, [threads, filter, me.id])
+  }, [threads, filter, me.id, pinned])
 
   const openId = params.get('open')
   const selected =
@@ -70,6 +99,11 @@ export function Threads() {
   function select(id: string) {
     setParams({ open: id })
     setDraft('')
+  }
+
+  function clearPin() {
+    setParams({})
+    setOverride(null)
   }
 
   function subjectLabel(subject: ThreadSubject): string | null {
@@ -94,20 +128,47 @@ export function Threads() {
         }
       />
 
+      {pinned && (
+        <Card accent="teal" className="mb-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-ink-2">
+              Showing threads about{' '}
+              <strong className="font-semibold text-ink">
+                {subjectLabel({ kind: pinned.kind, id: pinned.id }) ?? pinned.id}
+              </strong>{' '}
+              <Badge tone="info">{THREAD_SUBJECT_LABEL[pinned.kind]}</Badge>
+            </p>
+            <div className="flex gap-2">
+              {!composing && (
+                <Button size="sm" variant="primary" onClick={() => setComposing(true)}>
+                  New thread about this
+                </Button>
+              )}
+              <Button size="sm" variant="ghost" onClick={clearPin}>
+                Show all threads
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
+
       {composing && (
         <NewThread
           staff={staff}
           meId={me.id}
+          pinned={pinned}
+          subjectLabel={subjectLabel}
           onCancel={() => setComposing(false)}
-          onCreate={(title, participants, message) => {
-            const id = createThread(
-              title,
-              { kind: 'GENERAL', id: null },
-              participants,
-              message,
-            )
+          onCreate={(title, subject, participants, message) => {
+            const id = createThread(title, subject, participants, message)
             setComposing(false)
-            select(id)
+            // Keep the record filter on so the new thread appears in context.
+            if (subject.kind !== 'GENERAL' && subject.id) {
+              setParams({ subject: encodeSubject(subject.kind, subject.id), open: id })
+            } else {
+              select(id)
+            }
+            setDraft('')
           }}
         />
       )}
@@ -316,17 +377,45 @@ function ThreadView({
 function NewThread({
   staff,
   meId,
+  pinned,
+  subjectLabel,
   onCancel,
   onCreate,
 }: {
   staff: ReturnType<typeof useStore>['staff']
   meId: string
+  /** Set when arriving from a Discuss button — the record is fixed. */
+  pinned: { kind: ThreadSubjectKind; id: string } | null
+  subjectLabel: (subject: ThreadSubject) => string | null
   onCancel: () => void
-  onCreate: (title: string, participants: string[], message: string) => void
+  onCreate: (
+    title: string,
+    subject: ThreadSubject,
+    participants: string[],
+    message: string,
+  ) => void
 }) {
+  const { properties, deals, leads, shoots } = useStore()
   const [title, setTitle] = useState('')
   const [message, setMessage] = useState('')
   const [picked, setPicked] = useState<string[]>([meId])
+  const [kind, setKind] = useState<ThreadSubjectKind>(pinned?.kind ?? 'GENERAL')
+  const [recordId, setRecordId] = useState<string>(pinned?.id ?? '')
+
+  // The records a thread can be attached to, per kind.
+  const options: { id: string; label: string }[] =
+    kind === 'PROPERTY'
+      ? properties.map((p) => ({ id: p.id, label: p.title }))
+      : kind === 'DEAL'
+        ? deals.map((d) => ({ id: d.id, label: d.company }))
+        : kind === 'LEAD'
+          ? leads.map((l) => ({ id: l.id, label: l.name }))
+          : kind === 'SHOOT'
+            ? shoots.map((sh) => ({ id: sh.id, label: sh.title }))
+            : []
+
+  const needsRecord = kind !== 'GENERAL'
+  const valid = title.trim() !== '' && picked.length > 0 && (!needsRecord || recordId)
 
   function toggle(id: string) {
     setPicked((prev) =>
@@ -334,26 +423,89 @@ function NewThread({
     )
   }
 
+  function changeKind(next: ThreadSubjectKind) {
+    setKind(next)
+    setRecordId('')
+  }
+
+  function submit() {
+    if (!valid) return
+    onCreate(
+      title.trim(),
+      { kind, id: needsRecord ? recordId : null },
+      picked,
+      message,
+    )
+  }
+
   return (
-    <Card className="mb-4">
+    <Card accent="teal" className="mb-4">
       <h2 className="mb-3 text-sm font-semibold text-ink">New thread</h2>
-      <div className="grid gap-3">
-        <TextInput
-          ariaLabel="Thread title"
-          value={title}
-          onChange={setTitle}
-          placeholder="What is this about?"
-        />
-        <TextInput
-          ariaLabel="First message"
-          value={message}
-          onChange={setMessage}
-          placeholder="First message"
-        />
-        <div>
-          <span className="mb-1.5 block text-xs font-medium tracking-wide text-ink-3 uppercase">
-            Participants
-          </span>
+      <div className="grid gap-3.5">
+        {pinned ? (
+          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-teal/30 bg-teal-soft/40 px-3 py-2">
+            <Badge tone="info">{THREAD_SUBJECT_LABEL[pinned.kind]}</Badge>
+            <span className="text-sm text-ink">
+              {subjectLabel({ kind: pinned.kind, id: pinned.id }) ?? pinned.id}
+            </span>
+            <span className="text-xs text-ink-3">— this thread stays on it</span>
+          </div>
+        ) : (
+          <div className="grid gap-3.5 sm:grid-cols-2">
+            <Field label="About">
+              <Select
+                ariaLabel="Thread subject kind"
+                value={kind}
+                onChange={(v) => changeKind(v as ThreadSubjectKind)}
+              >
+                {(
+                  ['GENERAL', 'PROPERTY', 'DEAL', 'LEAD', 'SHOOT'] as ThreadSubjectKind[]
+                ).map((k) => (
+                  <option key={k} value={k}>
+                    {k === 'GENERAL' ? 'Nothing in particular' : THREAD_SUBJECT_LABEL[k]}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            {needsRecord && (
+              <Field label="Which one?">
+                <Select
+                  ariaLabel="Record"
+                  value={recordId}
+                  onChange={setRecordId}
+                >
+                  <option value="">Choose…</option>
+                  {options.map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.label}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+            )}
+          </div>
+        )}
+
+        <Field label="Title">
+          <TextInput
+            ariaLabel="Thread title"
+            value={title}
+            onChange={setTitle}
+            placeholder="What is this about?"
+          />
+        </Field>
+
+        <Field label="First message">
+          <Textarea
+            ariaLabel="First message"
+            value={message}
+            onChange={setMessage}
+            rows={3}
+            placeholder="The reasoning worth finding again later."
+          />
+        </Field>
+
+        <Field label="Participants">
           <div className="flex flex-wrap gap-1.5">
             {staff.map((s) => {
               const on = picked.includes(s.id)
@@ -373,14 +525,11 @@ function NewThread({
               )
             })}
           </div>
-        </div>
+        </Field>
+
         <div className="flex gap-2">
-          <Button
-            variant="primary"
-            disabled={!title.trim() || picked.length === 0}
-            onClick={() => onCreate(title.trim(), picked, message)}
-          >
-            Create
+          <Button variant="primary" disabled={!valid} onClick={submit}>
+            Create thread
           </Button>
           <Button variant="ghost" onClick={onCancel}>
             Cancel

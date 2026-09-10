@@ -16,6 +16,7 @@ import type {
   Staff,
   Target,
   Thread,
+  ThreadSubjectKind,
 } from './types'
 import { isWeekend, onDay, pct } from './format'
 
@@ -387,4 +388,140 @@ export function directCounterpart(
 export function lastMessageAt(channel: Channel): number {
   const last = channel.messages[channel.messages.length - 1]
   return new Date(last?.createdAt ?? channel.createdAt).getTime()
+}
+
+/* ─── Threads on records ─────────────────────────────────────────────── */
+
+/** Threads pinned to one specific record. */
+export function threadsForSubject(
+  threads: Thread[],
+  kind: ThreadSubjectKind,
+  id: string,
+): Thread[] {
+  return threads.filter((t) => t.subject.kind === kind && t.subject.id === id)
+}
+
+/** Open threads on a record — the count worth putting on a button. */
+export function openThreadCount(
+  threads: Thread[],
+  kind: ThreadSubjectKind,
+  id: string,
+): number {
+  return threadsForSubject(threads, kind, id).filter((t) => !t.resolved).length
+}
+
+/**
+ * URL encoding for "this thread is about that record", e.g. PROPERTY:prop-1.
+ * A single param keeps every Discuss link in the app one shape.
+ */
+export function encodeSubject(kind: ThreadSubjectKind, id: string): string {
+  return `${kind}:${id}`
+}
+
+export function decodeSubject(
+  raw: string | null,
+): { kind: ThreadSubjectKind; id: string } | null {
+  if (!raw) return null
+  const [kind, ...rest] = raw.split(':')
+  const id = rest.join(':')
+  if (!id) return null
+  const valid: ThreadSubjectKind[] = ['PROPERTY', 'DEAL', 'LEAD', 'SHOOT', 'GENERAL']
+  if (!valid.includes(kind as ThreadSubjectKind)) return null
+  return { kind: kind as ThreadSubjectKind, id }
+}
+
+/* ─── Delete impact ──────────────────────────────────────────────────── */
+
+export interface DeleteImpact {
+  /** Leads whose propertyId would be cleared. */
+  leadsUnlinked: number
+  /** Shoots whose propertyId would be cleared. */
+  shootsUnlinked: number
+  /** Properties whose dealId would be cleared. */
+  propertiesUnlinked: number
+  /** Threads pinned to the record, which go with it. */
+  threadsRemoved: number
+}
+
+/**
+ * What else a deletion touches.
+ *
+ * Records here reference each other by id, so removing one without cleaning
+ * up leaves leads pointing at properties that no longer exist. Rather than
+ * forbid deletion or silently corrupt the data, the consequences are counted
+ * and shown before anyone confirms.
+ */
+export function deleteImpact(
+  kind: 'PROPERTY' | 'DEAL' | 'LEAD',
+  id: string,
+  input: {
+    properties: Property[]
+    leads: Lead[]
+    shoots: Shoot[]
+    threads: Thread[]
+  },
+): DeleteImpact {
+  const threadsRemoved = threadsForSubject(input.threads, kind, id).length
+
+  if (kind === 'PROPERTY') {
+    return {
+      leadsUnlinked: input.leads.filter((l) => l.propertyId === id).length,
+      shootsUnlinked: input.shoots.filter((s) => s.propertyId === id).length,
+      propertiesUnlinked: 0,
+      threadsRemoved,
+    }
+  }
+  if (kind === 'DEAL') {
+    return {
+      leadsUnlinked: 0,
+      shootsUnlinked: 0,
+      propertiesUnlinked: input.properties.filter((p) => p.dealId === id).length,
+      threadsRemoved,
+    }
+  }
+  return {
+    leadsUnlinked: 0,
+    shootsUnlinked: 0,
+    propertiesUnlinked: 0,
+    threadsRemoved,
+  }
+}
+
+export function impactSentences(impact: DeleteImpact): string[] {
+  const out: string[] = []
+  if (impact.leadsUnlinked > 0) {
+    out.push(
+      `${impact.leadsUnlinked} lead${impact.leadsUnlinked === 1 ? '' : 's'} will no longer be linked to a property`,
+    )
+  }
+  if (impact.shootsUnlinked > 0) {
+    out.push(
+      `${impact.shootsUnlinked} shoot${impact.shootsUnlinked === 1 ? '' : 's'} will lose its property link`,
+    )
+  }
+  if (impact.propertiesUnlinked > 0) {
+    out.push(
+      `${impact.propertiesUnlinked} propert${impact.propertiesUnlinked === 1 ? 'y' : 'ies'} will no longer show which mandate produced them`,
+    )
+  }
+  if (impact.threadsRemoved > 0) {
+    out.push(
+      `${impact.threadsRemoved} thread${impact.threadsRemoved === 1 ? '' : 's'} pinned to it will be deleted`,
+    )
+  }
+  return out
+}
+
+/* ─── Active staff ───────────────────────────────────────────────────── */
+
+/**
+ * Staff who can be given new work.
+ *
+ * A deactivated position keeps its history — its id is still stamped on the
+ * properties and messages it produced — but must not appear in an assignment
+ * dropdown. `keepId` holds one exception open so editing a record that is
+ * already assigned to somebody now inactive does not silently reassign it.
+ */
+export function assignableStaff(staff: Staff[], keepId?: string | null): Staff[] {
+  return staff.filter((s) => s.active || (keepId != null && s.id === keepId))
 }

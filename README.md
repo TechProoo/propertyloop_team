@@ -79,6 +79,10 @@ Four things can be created in the portal, and the list is deliberate
 | **Offline lead** | Calls, walk-ins and referrals leave no trace otherwise |
 | **Deal** | No backend model exists at all — this is the only record of it |
 | **Internal task** | Work the platform does not know about |
+| **Shoot** | The Ambassador's production line — 25–30 videos a month has to start somewhere |
+| **Content piece** | Marketing's calendar |
+| **Target** | Set and edit the monthly numbers (`MANAGE_TARGETS`) |
+| **Staff position** | Add, edit and deactivate people (`MANAGE_STAFF`) |
 
 **KYC reviews, payouts, reports, disputes and listing reviews cannot be created
 by hand.** Those rows are projections of `KycSubmission`, `WithdrawalRequest`,
@@ -86,6 +90,11 @@ by hand.** Those rows are projections of `KycSubmission`, `WithdrawalRequest`,
 behind it that somebody could mark resolved without any money moving or any
 document being checked. `DERIVED_OPS_KINDS` in `types.ts` names them; only
 `TASK` is hand-created, and it is labelled `manual` in the queue.
+
+Each form does double duty — pass `existing` and it edits that record instead
+of creating one, so a field added to the create form can never go missing from
+the edit form. A pencil icon on every property row, deal card, lead and task
+opens it.
 
 Three rules the forms enforce:
 
@@ -100,7 +109,28 @@ Three rules the forms enforce:
   by the platform; typing one in would duplicate the record and start the
   response clock from when somebody got round to it. A logged offline lead
   starts `CONTACTED` with the SLA clock stopped, since the conversation has
-  already happened.
+  already happened. (Editing an existing lead keeps whatever source it has,
+  so saving a note cannot silently rewrite where it came from.)
+- Un-ticking a document on edit **clears its verification too**, and putting it
+  back does not restore it — someone has to check it again. The `verified` flag
+  is always recomputed from the documents, so the edit path and
+  `toggleDocVerified` cannot disagree.
+
+## Deleting shows its consequences first
+
+Records reference each other by id, so a delete is never local. Rather than
+forbidding it or corrupting the data silently, `deleteImpact()` counts what
+else changes and the danger zone spells it out before a second, deliberate
+click:
+
+> 2 leads will no longer be linked to a property · 1 shoot will lose its
+> property link · 1 thread pinned to it will be deleted
+
+Every delete cascades in the same update — referencing ids are cleared and
+pinned threads go with the record — so nothing is ever left pointing at
+something that no longer exists. A **published** listing cannot be deleted at
+all; it has to be paused first, because removing what the public site is
+serving should not be one click inside an edit dialog.
 
 ## Daily logs pair writing with evidence
 
@@ -120,6 +150,20 @@ Managers (`VIEW_ALL_LOGS` — MD/CEO and GM) get a team view for any day, showin
 who has not filed and surfacing blockers first. Weekends are excluded from the
 missed-day count.
 
+## Staff are deactivated, never deleted
+
+A staff id is stamped on every property, deal, lead, log and message that
+person touched, so removing them would orphan all of it. Deactivating keeps the
+history readable, and the org document's idea of a vacant position maps onto it
+exactly. A deactivated position cannot be signed into and disappears from every
+assignment dropdown — except on a record already assigned to them, so editing
+it does not silently reassign the work (`assignableStaff`).
+
+Revenue figures are held behind `VIEW_REVENUE`: naira targets read "hidden" and
+deal values drop out of the pipeline board for roles without it, so the
+scorecard is still readable without exposing the company's money to everyone
+who can see a progress bar.
+
 ## Messages vs Threads
 
 Two different things, deliberately kept apart:
@@ -129,6 +173,14 @@ Two different things, deliberately kept apart:
   per person, from `lastReadAt`.
 - **Threads** — discussion pinned to a specific property, deal, lead or shoot,
   so the reasoning survives next to the record it was about.
+
+Every property row, deal card, lead and shoot carries a **Discuss** button
+([`DiscussButton.tsx`](src/components/DiscussButton.tsx)) showing the count of
+open threads on it. They all link to one URL shape,
+`/threads?subject=KIND:ID` — the Threads screen filters to that record and
+opens the composer already attached to it when nothing exists yet. One shape
+means a Discuss button drops onto any future record screen with no new
+plumbing.
 
 Anything that changes a record's state belongs on that record's thread. Chatter
 belongs in Messages.

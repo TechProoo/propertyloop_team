@@ -13,12 +13,24 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import { StoreContext } from './storeContext'
 import type {
+  ContentPatch,
+  DealPatch,
+  LeadPatch,
+  NewContentInput,
+  NewShootInput,
+  NewStaffInput,
+  NewTargetInput,
+  ShootPatch,
+  StaffPatch,
+  TargetPatch,
   NewDealInput,
   NewLeadInput,
   NewPropertyInput,
   NewTaskInput,
   PersistedData,
+  PropertyPatch,
   StoreValue,
+  TaskPatch,
 } from './storeContext'
 import {
   CONTENT,
@@ -41,7 +53,7 @@ import type {
   ShootStage,
   ThreadSubject,
 } from './types'
-import { ALL_STAFF_CHANNEL_ID } from './types'
+import { ALL_STAFF_CHANNEL_ID, DERIVED_OPS_KINDS } from './types'
 
 const SESSION_KEY = 'pl-team.session'
 const DATA_KEY = 'pl-team.data'
@@ -60,6 +72,7 @@ function freshData(): PersistedData {
     targets: TARGETS,
     logs: DAILY_LOGS,
     channels: CHANNELS,
+    staff: STAFF,
   })
 }
 
@@ -82,6 +95,7 @@ function loadData(): PersistedData {
       targets: parsed.targets ?? base.targets,
       logs: parsed.logs ?? base.logs,
       channels: parsed.channels ?? base.channels,
+      staff: parsed.staff ?? base.staff,
     }
   } catch {
     // Private windows and cleared site data both land here.
@@ -117,16 +131,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [currentUserId])
 
   const currentUser = useMemo(
-    () => STAFF.find((s) => s.id === currentUserId) ?? null,
-    [currentUserId],
+    () => data.staff.find((s) => s.id === currentUserId) ?? null,
+    [data.staff, currentUserId],
   )
 
   const signIn = useCallback((staffId: string) => setCurrentUserId(staffId), [])
   const signOut = useCallback(() => setCurrentUserId(null), [])
 
   const staffById = useCallback(
-    (id: string | null) => (id ? (STAFF.find((s) => s.id === id) ?? null) : null),
-    [],
+    (id: string | null) =>
+      id ? (data.staff.find((s) => s.id === id) ?? null) : null,
+    [data.staff],
   )
   const propertyById = useCallback(
     (id: string | null) =>
@@ -266,6 +281,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const addTask = useCallback((input: NewTaskInput) => {
+    // Guard, not decoration: DERIVED_OPS_KINDS are projections of backend
+    // records, and this is the one place an ops row can be born. Keeping the
+    // check here means a future caller cannot quietly create a phantom payout.
+    if ((DERIVED_OPS_KINDS as string[]).includes('TASK')) {
+      throw new Error('TASK must not be listed as a derived ops kind')
+    }
     const id = `ops-${Date.now()}`
     setData((prev) => ({
       ...prev,
@@ -285,6 +306,317 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       ],
     }))
     return id
+  }, [])
+
+  /* ─── Editing ──────────────────────────────────────────────────────── */
+
+  const updateProperty = useCallback((id: string, patch: PropertyPatch) => {
+    setData((prev) => ({
+      ...prev,
+      properties: prev.properties.map((p) => {
+        if (p.id !== id) return p
+        const { documentsPresent, ...rest } = patch
+        let documents = p.documents
+        if (documentsPresent) {
+          documents = p.documents.map((d) => {
+            const present = documentsPresent.includes(d.type)
+            return {
+              ...d,
+              present,
+              // Un-ticking a document takes its verification with it — a
+              // document that is no longer on file cannot stay "checked".
+              verified: present ? d.verified : false,
+            }
+          })
+        }
+        const next = { ...p, ...rest, documents }
+        // Keep the verified flag consistent with the documents, exactly as
+        // toggleDocVerified does, so the two paths cannot disagree.
+        return { ...next, verified: documents.every((d) => d.present && d.verified) }
+      }),
+    }))
+  }, [])
+
+  const updateLead = useCallback((id: string, patch: LeadPatch) => {
+    setData((prev) => ({
+      ...prev,
+      leads: prev.leads.map((l) => (l.id === id ? { ...l, ...patch } : l)),
+    }))
+  }, [])
+
+  const updateDeal = useCallback((id: string, patch: DealPatch) => {
+    setData((prev) => ({
+      ...prev,
+      deals: prev.deals.map((d) => {
+        if (d.id !== id) return d
+        const { nextActionInDays, ...rest } = patch
+        const nextActionAt =
+          nextActionInDays === undefined
+            ? d.nextActionAt
+            : nextActionInDays === null
+              ? null
+              : new Date(Date.now() + nextActionInDays * 86_400_000).toISOString()
+        return {
+          ...d,
+          ...rest,
+          nextActionAt,
+          lastActivityAt: new Date().toISOString(),
+        }
+      }),
+    }))
+  }, [])
+
+  const updateTask = useCallback((id: string, patch: TaskPatch) => {
+    setData((prev) => ({
+      ...prev,
+      ops: prev.ops.map((o) => (o.id === id ? { ...o, ...patch } : o)),
+    }))
+  }, [])
+
+  /* ─── Deleting ─────────────────────────────────────────────────────── */
+  // Every delete cleans up after itself. Leaving a lead pointing at a
+  // property id that no longer exists would render as a blank cell and quietly
+  // corrupt the counts, so references are cleared in the same update.
+
+  const deleteProperty = useCallback((id: string) => {
+    setData((prev) => ({
+      ...prev,
+      properties: prev.properties.filter((p) => p.id !== id),
+      leads: prev.leads.map((l) =>
+        l.propertyId === id ? { ...l, propertyId: null } : l,
+      ),
+      shoots: prev.shoots.map((s) =>
+        s.propertyId === id ? { ...s, propertyId: null } : s,
+      ),
+      threads: prev.threads.filter(
+        (t) => !(t.subject.kind === 'PROPERTY' && t.subject.id === id),
+      ),
+    }))
+  }, [])
+
+  const deleteDeal = useCallback((id: string) => {
+    setData((prev) => ({
+      ...prev,
+      deals: prev.deals.filter((d) => d.id !== id),
+      properties: prev.properties.map((p) =>
+        p.dealId === id ? { ...p, dealId: null } : p,
+      ),
+      threads: prev.threads.filter(
+        (t) => !(t.subject.kind === 'DEAL' && t.subject.id === id),
+      ),
+    }))
+  }, [])
+
+  const deleteLead = useCallback((id: string) => {
+    setData((prev) => ({
+      ...prev,
+      leads: prev.leads.filter((l) => l.id !== id),
+      threads: prev.threads.filter(
+        (t) => !(t.subject.kind === 'LEAD' && t.subject.id === id),
+      ),
+    }))
+  }, [])
+
+  const deleteOpsItem = useCallback((id: string) => {
+    setData((prev) => ({ ...prev, ops: prev.ops.filter((o) => o.id !== id) }))
+  }, [])
+
+  /* ─── Shoots ───────────────────────────────────────────────────────── */
+
+  const addShoot = useCallback((input: NewShootInput) => {
+    const id = `shoot-${Date.now()}`
+    setData((prev) => ({
+      ...prev,
+      shoots: [
+        {
+          id,
+          propertyId: input.propertyId,
+          title: input.title,
+          location: input.location,
+          // Nothing is booked until a date exists, which is what the
+          // Secretary's 24-hour prep rule is measured against.
+          stage: input.scheduledInDays === null ? 'REQUESTED' : 'SCHEDULED',
+          scheduledFor:
+            input.scheduledInDays === null
+              ? null
+              : new Date(
+                  Date.now() + input.scheduledInDays * 86_400_000,
+                ).toISOString(),
+          prepCompleteAt: null,
+          presenterId: input.presenterId,
+          secretaryId: input.secretaryId,
+          reshoot: false,
+          engagementRate: null,
+          publishedAt: null,
+        },
+        ...prev.shoots,
+      ],
+    }))
+    return id
+  }, [])
+
+  const updateShoot = useCallback((id: string, patch: ShootPatch) => {
+    setData((prev) => ({
+      ...prev,
+      shoots: prev.shoots.map((sh) => {
+        if (sh.id !== id) return sh
+        const { scheduledInDays, ...rest } = patch
+        const scheduledFor =
+          scheduledInDays === undefined
+            ? sh.scheduledFor
+            : scheduledInDays === null
+              ? null
+              : new Date(Date.now() + scheduledInDays * 86_400_000).toISOString()
+        const next = { ...sh, ...rest, scheduledFor }
+        // Un-booking a shoot cannot leave it claiming to be scheduled.
+        return scheduledFor === null && next.stage === 'SCHEDULED'
+          ? { ...next, stage: 'REQUESTED' as const }
+          : next
+      }),
+    }))
+  }, [])
+
+  const deleteShoot = useCallback((id: string) => {
+    setData((prev) => ({
+      ...prev,
+      shoots: prev.shoots.filter((sh) => sh.id !== id),
+      threads: prev.threads.filter(
+        (t) => !(t.subject.kind === 'SHOOT' && t.subject.id === id),
+      ),
+    }))
+  }, [])
+
+  /* ─── Content ──────────────────────────────────────────────────────── */
+
+  const addContent = useCallback((input: NewContentInput) => {
+    const id = `content-${Date.now()}`
+    const now = new Date().toISOString()
+    setData((prev) => ({
+      ...prev,
+      content: [
+        {
+          id,
+          title: input.title,
+          channel: input.channel,
+          kind: input.kind,
+          publishedAt: input.scheduledInDays === null ? now : null,
+          scheduledFor:
+            input.scheduledInDays === null
+              ? null
+              : new Date(
+                  Date.now() + input.scheduledInDays * 86_400_000,
+                ).toISOString(),
+          // Engagement comes from each platform's own analytics, so it starts
+          // empty rather than pretending to a number nobody has read yet.
+          engagementRate: null,
+          leadsGenerated: 0,
+          ownerId: input.ownerId,
+        },
+        ...prev.content,
+      ],
+    }))
+    return id
+  }, [])
+
+  const updateContent = useCallback((id: string, patch: ContentPatch) => {
+    setData((prev) => ({
+      ...prev,
+      content: prev.content.map((c) => {
+        if (c.id !== id) return c
+        const { scheduledInDays, publishNow, ...rest } = patch
+        const scheduledFor =
+          scheduledInDays === undefined
+            ? c.scheduledFor
+            : scheduledInDays === null
+              ? null
+              : new Date(Date.now() + scheduledInDays * 86_400_000).toISOString()
+        return {
+          ...c,
+          ...rest,
+          scheduledFor: publishNow ? null : scheduledFor,
+          publishedAt: publishNow
+            ? (c.publishedAt ?? new Date().toISOString())
+            : c.publishedAt,
+        }
+      }),
+    }))
+  }, [])
+
+  const deleteContent = useCallback((id: string) => {
+    setData((prev) => ({ ...prev, content: prev.content.filter((c) => c.id !== id) }))
+  }, [])
+
+  /* ─── Targets ──────────────────────────────────────────────────────── */
+
+  const updateTarget = useCallback((id: string, patch: TargetPatch) => {
+    setData((prev) => ({
+      ...prev,
+      targets: prev.targets.map((t) => (t.id === id ? { ...t, ...patch } : t)),
+    }))
+  }, [])
+
+  const addTarget = useCallback((input: NewTargetInput) => {
+    const id = `t-${Date.now()}`
+    setData((prev) => ({
+      ...prev,
+      targets: [
+        ...prev.targets,
+        {
+          id,
+          staffId: input.staffId,
+          label: input.label,
+          min: input.min,
+          max: Math.max(input.min, input.max),
+          actual: 0,
+          unit: input.unit,
+          ceiling: input.ceiling,
+          // A target invented here has no query behind it yet. Saying so is
+          // the point of the provenance column.
+          provenance: 'MANUAL',
+        },
+      ],
+    }))
+    return id
+  }, [])
+
+  const deleteTarget = useCallback((id: string) => {
+    setData((prev) => ({ ...prev, targets: prev.targets.filter((t) => t.id !== id) }))
+  }, [])
+
+  /* ─── Staff ────────────────────────────────────────────────────────── */
+  // No delete. Staff ids are stamped on properties, deals, leads, logs and
+  // every message ever sent; removing one would orphan all of it. Deactivating
+  // keeps the history readable and is what the org document means by a
+  // position being vacant.
+
+  const addStaff = useCallback((input: NewStaffInput) => {
+    const id = `staff-${Date.now()}`
+    setData((prev) => ({
+      ...prev,
+      staff: [...prev.staff, { id, ...input, active: true }],
+      // A new colleague joins the all-staff channel immediately, or they
+      // cannot see anything the team has agreed.
+      channels: prev.channels.map((c) =>
+        c.id === ALL_STAFF_CHANNEL_ID
+          ? { ...c, memberIds: [...c.memberIds, id] }
+          : c,
+      ),
+    }))
+    return id
+  }, [])
+
+  const updateStaff = useCallback((id: string, patch: StaffPatch) => {
+    setData((prev) => ({
+      ...prev,
+      staff: prev.staff.map((sm) => (sm.id === id ? { ...sm, ...patch } : sm)),
+    }))
+  }, [])
+
+  const setStaffActive = useCallback((id: string, active: boolean) => {
+    setData((prev) => ({
+      ...prev,
+      staff: prev.staff.map((sm) => (sm.id === id ? { ...sm, active } : sm)),
+    }))
   }, [])
 
   const moveDeal = useCallback((dealId: string, stage: DealStage) => {
@@ -645,7 +977,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const value: StoreValue = {
     ...data,
-    staff: STAFF,
     currentUser,
     signIn,
     signOut,
@@ -654,6 +985,26 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     addLead,
     addDeal,
     addTask,
+    updateProperty,
+    updateLead,
+    updateDeal,
+    updateTask,
+    deleteProperty,
+    deleteLead,
+    deleteDeal,
+    deleteOpsItem,
+    addShoot,
+    updateShoot,
+    deleteShoot,
+    addContent,
+    updateContent,
+    deleteContent,
+    updateTarget,
+    addTarget,
+    deleteTarget,
+    addStaff,
+    updateStaff,
+    setStaffActive,
     propertyById,
     dealById,
     leadById,

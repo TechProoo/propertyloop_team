@@ -22,8 +22,12 @@ export function Login() {
     navigate('/')
   }
 
-  const lagos = staff.filter((s) => s.chapter === 'LAGOS')
-  const osun = staff.filter((s) => s.chapter === 'OSUN')
+  // A deactivated position cannot be signed into — it keeps its history but
+  // is no longer somebody who works here.
+  const active = staff.filter((s) => s.active)
+  const lagos = active.filter((s) => s.chapter === 'LAGOS')
+  const osun = active.filter((s) => s.chapter === 'OSUN')
+  const hidden = staff.length - active.length
 
   return (
     <div className="mx-auto flex min-h-full max-w-3xl flex-col justify-center px-4 py-12">
@@ -94,6 +98,13 @@ export function Login() {
           </button>
         ))}
       </div>
+
+      {hidden > 0 && (
+        <p className="mb-3 text-xs text-ink-3">
+          {hidden} deactivated {hidden === 1 ? 'position is' : 'positions are'} not
+          shown.
+        </p>
+      )}
 
       <Note>
         This is a frontend shell. There is no password and no session — picking

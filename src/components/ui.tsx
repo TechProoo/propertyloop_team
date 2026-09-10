@@ -602,7 +602,8 @@ export function Th({
   children,
   className = '',
 }: {
-  children: ReactNode
+  /** Optional so a table can carry an unlabelled action column. */
+  children?: ReactNode
   className?: string
 }) {
   return (

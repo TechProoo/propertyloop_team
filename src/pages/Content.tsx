@@ -4,6 +4,8 @@ import {
   CheckCircle2,
   Clapperboard,
   Film,
+  Pencil,
+  Plus,
   RotateCcw,
   Sparkles,
   Video,
@@ -18,7 +20,9 @@ import {
   SHOOT_STAGE_LABEL,
   SHOOT_STAGE_ORDER,
 } from '../lib/types'
-import type { Shoot, ShootStage, Staff } from '../lib/types'
+import type { ContentPiece, Shoot, ShootStage, Staff } from '../lib/types'
+import { DiscussButton } from '../components/DiscussButton'
+import { ContentForm, ShootForm } from '../components/forms2'
 import {
   Badge,
   Button,
@@ -50,6 +54,10 @@ export function Content() {
 
   const editable = can(me.role, 'MANAGE_CONTENT')
   const [stage, setStage] = useState('ALL')
+  const [newShoot, setNewShoot] = useState(false)
+  const [editShoot, setEditShoot] = useState<Shoot | null>(null)
+  const [newPiece, setNewPiece] = useState(false)
+  const [editPiece, setEditPiece] = useState<ContentPiece | null>(null)
 
   const visible = shoots.filter((s) => stage === 'ALL' || s.stage === stage)
 
@@ -77,7 +85,30 @@ export function Content() {
         subtitle="Video production line and the publishing calendar"
         icon={Clapperboard}
         accent="violet"
+        actions={
+          editable && (
+            <>
+              <Button onClick={() => setNewPiece(true)}>
+                <Plus size={15} />
+                Content
+              </Button>
+              <Button variant="primary" onClick={() => setNewShoot(true)}>
+                <Plus size={15} />
+                Shoot
+              </Button>
+            </>
+          )
+        }
       />
+
+      {newShoot && <ShootForm onClose={() => setNewShoot(false)} />}
+      {editShoot && (
+        <ShootForm existing={editShoot} onClose={() => setEditShoot(null)} />
+      )}
+      {newPiece && <ContentForm onClose={() => setNewPiece(false)} />}
+      {editPiece && (
+        <ContentForm existing={editPiece} onClose={() => setEditPiece(null)} />
+      )}
 
       <div className="pl-stagger mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Stat
@@ -161,6 +192,7 @@ export function Content() {
               key={s.id}
               shoot={s}
               editable={editable}
+              onEdit={() => setEditShoot(s)}
               propertyTitle={propertyById(s.propertyId)?.title ?? null}
               presenter={staffById(s.presenterId)}
               secretary={staffById(s.secretaryId)}
@@ -186,6 +218,7 @@ export function Content() {
               <Th>Engagement</Th>
               <Th>Leads</Th>
               <Th>Owner</Th>
+              <Th />
             </tr>
           </thead>
           <tbody>
@@ -230,6 +263,19 @@ export function Content() {
                       {ownerStaff ? displayName(ownerStaff) : '—'}
                     </span>
                   </Td>
+                  <Td className="text-right">
+                    {editable && (
+                      <button
+                        type="button"
+                        onClick={() => setEditPiece(c)}
+                        aria-label={`Edit ${c.title}`}
+                        title="Edit"
+                        className="rounded-lg p-1.5 text-ink-3 transition-colors hover:bg-surface-2 hover:text-primary"
+                      >
+                        <Pencil size={13} strokeWidth={2} />
+                      </button>
+                    )}
+                  </Td>
                 </Tr>
               )
             })}
@@ -257,9 +303,11 @@ function ShootCard({
   secretary,
   onStage,
   onPrep,
+  onEdit,
 }: {
   shoot: Shoot
   editable: boolean
+  onEdit: () => void
   propertyTitle: string | null
   presenter: Staff | null
   secretary: Staff | null
@@ -317,6 +365,20 @@ function ShootCard({
           {presenter ? displayName(presenter) : '—'}
           {secretary && ` · prep: ${displayName(secretary)}`}
           {shoot.publishedAt && ` · ${relative(shoot.publishedAt)}`}
+        </span>
+        <span className="flex shrink-0 items-center gap-0.5">
+          <DiscussButton kind="SHOOT" id={shoot.id} compact />
+          {editable && (
+            <button
+              type="button"
+              onClick={onEdit}
+              aria-label={`Edit ${shoot.title}`}
+              title="Edit"
+              className="rounded p-1 text-ink-3 transition-colors hover:bg-surface-2 hover:text-primary"
+            >
+              <Pencil size={12} strokeWidth={2} />
+            </button>
+          )}
         </span>
         {editable && (
           <span className="flex shrink-0 gap-1.5">

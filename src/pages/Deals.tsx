@@ -6,7 +6,9 @@ import {
   ChevronRight,
   Clock3,
   Handshake,
+  Pencil,
   Plus,
+  RotateCcw,
   Wallet,
 } from 'lucide-react'
 import { useCurrentUser, useStore } from '../lib/storeContext'
@@ -20,7 +22,8 @@ import {
   MANDATE_LABEL,
 } from '../lib/types'
 import type { Deal, DealStage, MandateType } from '../lib/types'
-import { NewDealForm } from '../components/forms'
+import { DealForm } from '../components/forms'
+import { DiscussButton } from '../components/DiscussButton'
 import {
   Badge,
   Button,
@@ -52,12 +55,14 @@ export function Deals() {
   const me = useCurrentUser()
   const { deals, staffById, moveDeal } = useStore()
   const editable = can(me.role, 'MANAGE_DEALS')
+  const seesRevenue = can(me.role, 'VIEW_REVENUE')
 
   const [kind, setKind] = useState('ALL')
   const [owner, setOwner] = useState('ALL')
   const [chapter, setChapter] = useState('ALL')
   const [query, setQuery] = useState('')
   const [creating, setCreating] = useState(false)
+  const [editing, setEditing] = useState<Deal | null>(null)
 
   const filtered = useMemo(() => {
     return deals.filter((d) => {
@@ -104,13 +109,18 @@ export function Deals() {
         }
       />
 
-      {creating && <NewDealForm onClose={() => setCreating(false)} />}
+      {creating && <DealForm onClose={() => setCreating(false)} />}
+      {editing && <DealForm existing={editing} onClose={() => setEditing(null)} />}
 
       <div className="pl-stagger mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Stat
-          label="Pipeline value"
-          value={naira(pipelineValue)}
-          sub={`${live.length} live deals`}
+          label={seesRevenue ? 'Pipeline value' : 'Live deals'}
+          value={seesRevenue ? naira(pipelineValue) : live.length}
+          sub={
+            seesRevenue
+              ? `${live.length} live deals`
+              : 'Deal values need revenue access'
+          }
           accent="gold"
           icon={Wallet}
         />
@@ -187,7 +197,7 @@ export function Deals() {
                   </h2>
                   <span className="text-xs text-ink-3">
                     {column.length}
-                    {value > 0 && ` · ${naira(value)}`}
+                    {seesRevenue && value > 0 && ` · ${naira(value)}`}
                   </span>
                 </div>
                 <div className="flex flex-col gap-2">
@@ -196,7 +206,9 @@ export function Deals() {
                       key={d.id}
                       deal={d}
                       editable={editable}
+                      seesRevenue={seesRevenue}
                       onMove={(next) => moveDeal(d.id, next)}
+                      onEdit={() => setEditing(d)}
                     />
                   ))}
                   {column.length === 0 && (
@@ -222,7 +234,30 @@ export function Deals() {
                 key={d.id}
                 className="rounded-2xl border border-line bg-surface p-3 opacity-60 transition-opacity hover:opacity-100"
               >
-                <div className="text-sm font-medium text-ink">{d.company}</div>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="text-sm font-medium text-ink">{d.company}</div>
+                  {editable && (
+                    <span className="flex shrink-0 gap-0.5">
+                      <button
+                        type="button"
+                        onClick={() => setEditing(d)}
+                        aria-label={`Edit ${d.company}`}
+                        title="Edit"
+                        className="rounded p-1 text-ink-3 transition-colors hover:bg-surface-2 hover:text-primary"
+                      >
+                        <Pencil size={12} strokeWidth={2} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => moveDeal(d.id, 'IDENTIFIED')}
+                        title="Reopen this deal"
+                        className="rounded p-1 text-ink-3 transition-colors hover:bg-surface-2 hover:text-primary"
+                      >
+                        <RotateCcw size={12} strokeWidth={2} />
+                      </button>
+                    </span>
+                  )}
+                </div>
                 <div className="mt-0.5 text-xs text-ink-3">{d.notes}</div>
               </div>
             ))}
@@ -246,11 +281,15 @@ export function Deals() {
 function DealCard({
   deal,
   editable,
+  seesRevenue,
   onMove,
+  onEdit,
 }: {
   deal: Deal
   editable: boolean
+  seesRevenue: boolean
   onMove: (stage: DealStage) => void
+  onEdit: () => void
 }) {
   const { staffById } = useStore()
   const owner = staffById(deal.ownerId)
@@ -262,9 +301,11 @@ function DealCard({
     <article className="group rounded-2xl border border-line bg-surface p-3 shadow-[var(--shadow-tile)] transition-all duration-200 hover:-translate-y-0.5 hover:border-gold/40 hover:shadow-[var(--shadow-lift)]">
       <div className="flex items-start justify-between gap-2">
         <h3 className="text-sm leading-snug font-medium text-ink">{deal.company}</h3>
-        <span className="shrink-0 text-xs font-medium text-ink-2">
-          {naira(deal.valueNaira)}
-        </span>
+        {seesRevenue && (
+          <span className="shrink-0 text-xs font-medium text-ink-2">
+            {naira(deal.valueNaira)}
+          </span>
+        )}
       </div>
 
       <div className="mt-1 text-xs text-ink-3">
@@ -303,6 +344,20 @@ function DealCard({
           <span className={stale ? 'text-[color:var(--color-warn)]' : ''}>
             {relative(deal.lastActivityAt)}
           </span>
+        </span>
+        <span className="flex shrink-0 items-center gap-0.5">
+          <DiscussButton kind="DEAL" id={deal.id} compact />
+          {editable && (
+            <button
+              type="button"
+              onClick={onEdit}
+              aria-label={`Edit ${deal.company}`}
+              title="Edit"
+              className="rounded p-1 text-ink-3 transition-colors hover:bg-surface-2 hover:text-primary"
+            >
+              <Pencil size={12} strokeWidth={2} />
+            </button>
+          )}
         </span>
         {editable && (
           <span className="flex shrink-0 gap-1">

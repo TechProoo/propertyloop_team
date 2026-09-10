@@ -7,6 +7,8 @@ import { createContext, useContext } from 'react'
 import type {
   Channel,
   Chapter,
+  ContentChannel,
+  ContentKind,
   ContentPiece,
   DailyLog,
   Deal,
@@ -24,7 +26,9 @@ import type {
   Shoot,
   ShootStage,
   Staff,
+  StaffRole,
   Target,
+  TargetUnit,
   Thread,
   ThreadSubject,
 } from './types'
@@ -40,6 +44,8 @@ export interface PersistedData {
   targets: Target[]
   logs: DailyLog[]
   channels: Channel[]
+  /** Editable, so it lives in persisted data rather than as a module const. */
+  staff: Staff[]
 }
 
 export interface StoreValue extends PersistedData {
@@ -64,6 +70,42 @@ export interface StoreValue extends PersistedData {
   addLead: (input: NewLeadInput) => string
   addDeal: (input: NewDealInput) => string
   addTask: (input: NewTaskInput) => string
+
+  /* Editing. Patches are partial — a form sends only what it owns, so
+     nothing it does not render can be wiped by omission. */
+  updateProperty: (id: string, patch: PropertyPatch) => void
+  updateLead: (id: string, patch: LeadPatch) => void
+  updateDeal: (id: string, patch: DealPatch) => void
+  updateTask: (id: string, patch: TaskPatch) => void
+
+  /* Deleting. Each cascades: references held by other records are cleared
+     and threads pinned to the record go with it, so nothing is left
+     pointing at an id that no longer exists. Use deleteImpact() to show
+     what will happen before calling these. */
+  deleteProperty: (id: string) => void
+  deleteLead: (id: string) => void
+  deleteDeal: (id: string) => void
+  deleteOpsItem: (id: string) => void
+
+  /* Shoots and content — the Ambassador's and Marketing's own records. */
+  addShoot: (input: NewShootInput) => string
+  updateShoot: (id: string, patch: ShootPatch) => void
+  deleteShoot: (id: string) => void
+  addContent: (input: NewContentInput) => string
+  updateContent: (id: string, patch: ContentPatch) => void
+  deleteContent: (id: string) => void
+
+  /* Targets. Editing the number somebody is measured against is deliberately
+     a separate permission from reading it. */
+  updateTarget: (id: string, patch: TargetPatch) => void
+  addTarget: (input: NewTargetInput) => string
+  deleteTarget: (id: string) => void
+
+  /* Staff. There is no delete — ids are referenced by every other record, so
+     people are deactivated instead, which keeps their history intact. */
+  addStaff: (input: NewStaffInput) => string
+  updateStaff: (id: string, patch: StaffPatch) => void
+  setStaffActive: (id: string, active: boolean) => void
 
   moveDeal: (dealId: string, stage: DealStage) => void
   setPropertyStatus: (propertyId: string, status: ListingStatus) => void
@@ -137,6 +179,115 @@ export interface NewDealInput {
   nextActionInDays: number | null
   notes: string
 }
+
+export type PropertyPatch = Partial<
+  Pick<
+    Property,
+    | 'title'
+    | 'location'
+    | 'chapter'
+    | 'type'
+    | 'priceNaira'
+    | 'developer'
+    | 'dealId'
+    | 'units'
+    | 'unitsSold'
+    | 'photoCount'
+    | 'hasVideo'
+  >
+> & { documentsPresent?: DocumentType[] }
+
+export type LeadPatch = Partial<
+  Pick<
+    Lead,
+    'name' | 'phone' | 'source' | 'propertyId' | 'budgetNaira' | 'ownerId' | 'notes'
+  >
+>
+
+export type DealPatch = Partial<
+  Pick<
+    Deal,
+    | 'company'
+    | 'contactName'
+    | 'contactPhone'
+    | 'kind'
+    | 'mandate'
+    | 'valueNaira'
+    | 'expectedUnits'
+    | 'chapter'
+    | 'ownerId'
+    | 'nextAction'
+    | 'notes'
+  >
+> & { nextActionInDays?: number | null }
+
+export type TaskPatch = Partial<Pick<OpsItem, 'subject' | 'assigneeId' | 'urgent'>>
+
+export interface NewShootInput {
+  title: string
+  location: string
+  propertyId: string | null
+  presenterId: string
+  secretaryId: string
+  /** Days from today, or null when nothing is booked yet. */
+  scheduledInDays: number | null
+}
+
+export type ShootPatch = Partial<
+  Pick<
+    Shoot,
+    | 'title'
+    | 'location'
+    | 'propertyId'
+    | 'presenterId'
+    | 'secretaryId'
+    | 'reshoot'
+    | 'engagementRate'
+  >
+> & { scheduledInDays?: number | null }
+
+export interface NewContentInput {
+  title: string
+  channel: ContentChannel
+  kind: ContentKind
+  ownerId: string
+  /** Days from today. Null publishes it immediately. */
+  scheduledInDays: number | null
+}
+
+export type ContentPatch = Partial<
+  Pick<
+    ContentPiece,
+    'title' | 'channel' | 'kind' | 'ownerId' | 'engagementRate' | 'leadsGenerated'
+  >
+> & { scheduledInDays?: number | null; publishNow?: boolean }
+
+export type TargetPatch = Partial<
+  Pick<Target, 'label' | 'min' | 'max' | 'actual' | 'unit' | 'ceiling' | 'provenance'>
+>
+
+export interface NewTargetInput {
+  staffId: string
+  label: string
+  min: number
+  max: number
+  unit: TargetUnit
+  ceiling: boolean
+}
+
+export interface NewStaffInput {
+  letter: string
+  name: string | null
+  role: StaffRole
+  chapter: Chapter
+  secondaryChapter?: Chapter
+  email: string | null
+  reportsTo: string | null
+}
+
+export type StaffPatch = Partial<
+  Pick<Staff, 'name' | 'role' | 'chapter' | 'secondaryChapter' | 'email' | 'reportsTo'>
+>
 
 export interface NewTaskInput {
   subject: string

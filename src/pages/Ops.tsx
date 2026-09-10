@@ -5,11 +5,13 @@ import {
   Flame,
   Inbox,
   LifeBuoy,
+  Pencil,
   Plus,
   UserX,
 } from 'lucide-react'
 import { useCurrentUser, useStore } from '../lib/storeContext'
 import { can } from '../lib/permissions'
+import { assignableStaff } from '../lib/metrics'
 import { displayName, naira, relative } from '../lib/format'
 import { OPS_KIND_LABEL, OPS_KIND_SOURCE } from '../lib/types'
 import type { OpsItem, OpsKind } from '../lib/types'
@@ -29,7 +31,7 @@ import {
   Tr,
 } from '../components/ui'
 import type { BadgeTone } from '../components/ui'
-import { NewTaskForm } from '../components/forms'
+import { TaskForm } from '../components/forms'
 
 const KIND_TONE: Record<OpsKind, BadgeTone> = {
   KYC: 'info',
@@ -63,6 +65,7 @@ export function Ops() {
   const [kind, setKind] = useState('ALL')
   const [showResolved, setShowResolved] = useState('OPEN')
   const [creating, setCreating] = useState(false)
+  const [editing, setEditing] = useState<OpsItem | null>(null)
 
   const filtered = ops.filter((o) => {
     if (kind !== 'ALL' && o.kind !== kind) return false
@@ -102,7 +105,8 @@ export function Ops() {
         }
       />
 
-      {creating && <NewTaskForm onClose={() => setCreating(false)} />}
+      {creating && <TaskForm onClose={() => setCreating(false)} />}
+      {editing && <TaskForm existing={editing} onClose={() => setEditing(null)} />}
 
       <div className="pl-stagger mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Stat
@@ -244,7 +248,7 @@ export function Ops() {
                         className="min-w-[9rem] py-1 text-xs"
                       >
                         <option value="">Unassigned</option>
-                        {staff.map((s) => (
+                        {assignableStaff(staff, o.assigneeId).map((s) => (
                           <option key={s.id} value={s.id}>
                             {displayName(s)}
                           </option>
@@ -252,6 +256,17 @@ export function Ops() {
                       </Select>
                     </Td>
                     <Td className="text-right whitespace-nowrap">
+                      {o.kind === 'TASK' && canHandle && (
+                        <button
+                          type="button"
+                          onClick={() => setEditing(o)}
+                          aria-label={`Edit ${o.subject}`}
+                          title="Edit task"
+                          className="mr-1 rounded-lg p-1.5 align-middle text-ink-3 transition-colors hover:bg-surface-2 hover:text-primary"
+                        >
+                          <Pencil size={13} strokeWidth={2} />
+                        </button>
+                      )}
                       {allowed ? (
                         <Button
                           size="sm"

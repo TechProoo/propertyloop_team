@@ -1,12 +1,23 @@
-import { Database, Gauge, PenLine, Target as TargetIcon } from 'lucide-react'
+import {
+  Database,
+  Gauge,
+  Lock,
+  PenLine,
+  Pencil,
+  Plus,
+  Target as TargetIcon,
+} from 'lucide-react'
+import { useState } from 'react'
 import { useCurrentUser, useStore } from '../lib/storeContext'
 import { can } from '../lib/permissions'
 import { staffScore, targetMet, targetProgress } from '../lib/metrics'
 import { displayName, formatTargetValue, initials } from '../lib/format'
 import { STAFF_ROLE_LABEL } from '../lib/types'
 import type { Staff, Target } from '../lib/types'
+import { TargetForm } from '../components/forms2'
 import {
   Avatar,
+  Button,
   Badge,
   Card,
   Empty,
@@ -29,6 +40,10 @@ export function Targets() {
   const { targets, staff } = useStore()
 
   const seesAll = can(me.role, 'VIEW_ALL_TARGETS')
+  const canEdit = can(me.role, 'MANAGE_TARGETS')
+  const seesRevenue = can(me.role, 'VIEW_REVENUE')
+  const [editing, setEditing] = useState<Target | null>(null)
+  const [addingFor, setAddingFor] = useState<string | null>(null)
   const people = seesAll ? staff : staff.filter((s) => s.id === me.id)
 
   const manual = targets.filter((t) => t.provenance === 'MANUAL').length
@@ -46,6 +61,11 @@ export function Targets() {
         icon={TargetIcon}
         accent="gold"
       />
+
+      {editing && <TargetForm existing={editing} onClose={() => setEditing(null)} />}
+      {addingFor && (
+        <TargetForm staffId={addingFor} onClose={() => setAddingFor(null)} />
+      )}
 
       {seesAll && (
         <div className="pl-stagger mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -89,6 +109,10 @@ export function Targets() {
             key={person.id}
             person={person}
             targets={targets.filter((t) => t.staffId === person.id)}
+            canEdit={canEdit}
+            seesRevenue={seesRevenue}
+            onEdit={setEditing}
+            onAdd={() => setAddingFor(person.id)}
           />
         ))}
       </div>
@@ -110,7 +134,21 @@ export function Targets() {
   )
 }
 
-function PersonTargets({ person, targets }: { person: Staff; targets: Target[] }) {
+function PersonTargets({
+  person,
+  targets,
+  canEdit,
+  seesRevenue,
+  onEdit,
+  onAdd,
+}: {
+  person: Staff
+  targets: Target[]
+  canEdit: boolean
+  seesRevenue: boolean
+  onEdit: (target: Target) => void
+  onAdd: () => void
+}) {
   const score = targets.length === 0 ? null : staffScore(targets, person.id)
 
   return (
@@ -139,6 +177,12 @@ function PersonTargets({ person, targets }: { person: Staff; targets: Target[] }
             {targets.filter(targetMet).length}/{targets.length} met
           </div>
         </div>
+        {canEdit && (
+          <Button size="sm" onClick={onAdd}>
+            <Plus size={13} />
+            Target
+          </Button>
+        )}
       </div>
 
       {targets.length === 0 ? (
@@ -147,6 +191,10 @@ function PersonTargets({ person, targets }: { person: Staff; targets: Target[] }
         <div className="grid gap-3 md:grid-cols-2">
           {targets.map((t) => {
             const progress = targetProgress(t)
+            // Revenue figures are held back from roles without VIEW_REVENUE —
+            // a scorecard should still be readable without exposing the
+            // company's money to everyone who can see a progress bar.
+            const hidden = t.unit === 'NAIRA' && !seesRevenue
             const range =
               t.min === t.max
                 ? formatTargetValue(t.min, t.unit)
@@ -158,27 +206,49 @@ function PersonTargets({ person, targets }: { person: Staff; targets: Target[] }
               >
                 <div className="flex items-start justify-between gap-2">
                   <span className="text-sm leading-snug text-ink">{t.label}</span>
-                  <span
-                    title={
-                      t.provenance === 'DATABASE'
-                        ? 'Derived from records — nobody types this'
-                        : 'Entered by hand from an external source'
-                    }
-                    className="mt-0.5 shrink-0 text-ink-3"
-                  >
-                    {t.provenance === 'DATABASE' ? (
-                      <Database size={13} strokeWidth={1.75} />
-                    ) : (
-                      <PenLine size={13} strokeWidth={1.75} />
+                  <span className="mt-0.5 flex shrink-0 items-center gap-0.5">
+                    <span
+                      title={
+                        t.provenance === 'DATABASE'
+                          ? 'Derived from records — nobody types this'
+                          : 'Entered by hand from an external source'
+                      }
+                      className="text-ink-3"
+                    >
+                      {t.provenance === 'DATABASE' ? (
+                        <Database size={13} strokeWidth={1.75} />
+                      ) : (
+                        <PenLine size={13} strokeWidth={1.75} />
+                      )}
+                    </span>
+                    {canEdit && (
+                      <button
+                        type="button"
+                        onClick={() => onEdit(t)}
+                        aria-label={`Edit ${t.label}`}
+                        title="Edit target"
+                        className="rounded p-1 text-ink-3 transition-colors hover:bg-surface-2 hover:text-primary"
+                      >
+                        <Pencil size={12} strokeWidth={2} />
+                      </button>
                     )}
                   </span>
                 </div>
 
                 <div className="mt-2 flex items-baseline gap-2">
-                  <span className="font-display text-xl leading-none text-ink">
-                    {formatTargetValue(t.actual, t.unit)}
-                  </span>
-                  <span className="text-xs text-ink-3">of {range}</span>
+                  {hidden ? (
+                    <span className="inline-flex items-center gap-1.5 font-display text-xl leading-none text-ink-3">
+                      <Lock size={14} strokeWidth={2} />
+                      hidden
+                    </span>
+                  ) : (
+                    <>
+                      <span className="font-display text-xl leading-none text-ink">
+                        {formatTargetValue(t.actual, t.unit)}
+                      </span>
+                      <span className="text-xs text-ink-3">of {range}</span>
+                    </>
+                  )}
                   {targetMet(t) && <Badge tone="ok">met</Badge>}
                 </div>
 
