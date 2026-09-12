@@ -5,6 +5,7 @@
 
 import { createContext, useContext } from 'react'
 import type {
+  AgentPartner,
   Channel,
   Chapter,
   ContentChannel,
@@ -22,6 +23,7 @@ import type {
   ListingType,
   MandateType,
   OpsItem,
+  PartnerStatus,
   Property,
   Shoot,
   ShootStage,
@@ -46,6 +48,7 @@ export interface PersistedData {
   channels: Channel[]
   /** Editable, so it lives in persisted data rather than as a module const. */
   staff: Staff[]
+  partners: AgentPartner[]
 }
 
 export interface StoreValue extends PersistedData {
@@ -103,6 +106,14 @@ export interface StoreValue extends PersistedData {
 
   /* Staff. There is no delete — ids are referenced by every other record, so
      people are deactivated instead, which keeps their history intact. */
+  /* Agent partners — people who registered at /realtors/partners. They are
+     not created here: registration happens on the public site. What the
+     manager does is work them. */
+  setPartnerStatus: (id: string, status: PartnerStatus) => void
+  assignPartner: (id: string, staffId: string | null) => void
+  logPartnerContact: (id: string) => void
+  setPartnerNotes: (id: string, notes: string) => void
+
   addStaff: (input: NewStaffInput) => string
   updateStaff: (id: string, patch: StaffPatch) => void
   setStaffActive: (id: string, active: boolean) => void

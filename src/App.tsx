@@ -17,6 +17,7 @@ import { Logs } from './pages/Logs'
 import { Messages } from './pages/Messages'
 import { Targets } from './pages/Targets'
 import { Team } from './pages/Team'
+import { Partners } from './pages/Partners'
 
 /** Redirects to sign-in when nobody is selected. */
 function RequireAuth({ children }: { children: ReactElement }) {
@@ -99,6 +100,14 @@ function Router() {
         <Route path="logs" element={<Logs />} />
         <Route path="messages" element={<Messages />} />
         <Route path="targets" element={<Targets />} />
+        <Route
+          path="partners"
+          element={
+            <RequirePermission permissions={['MANAGE_LEADS']}>
+              <Partners />
+            </RequirePermission>
+          }
+        />
         <Route path="team" element={<Team />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

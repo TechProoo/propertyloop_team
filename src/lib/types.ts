@@ -576,3 +576,88 @@ export interface Channel {
 
 /** The one channel everybody is in. Seeded, and cannot be left. */
 export const ALL_STAFF_CHANNEL_ID = 'channel-all-staff'
+
+/* ─── Agent partners ─────────────────────────────────────────────────── */
+// People who registered through /realtors/partners on the public site.
+// Distinct from Staff: a partner works WITH PropertyLoop on commission, not
+// for it. The manager-side view exists because a recruitment link with no
+// tracking behind it is just a form — somebody has to see who arrived, who
+// vouched for them, and who is still waiting to be called.
+
+export const PartnerStatus = {
+  /** Registered, nobody has spoken to them yet. */
+  NEW: 'NEW',
+  /** Someone has made contact. */
+  CONTACTED: 'CONTACTED',
+  /** Identity and credentials checked — eligible for the public directory. */
+  VERIFIED: 'VERIFIED',
+  /** Listing or selling. */
+  ACTIVE: 'ACTIVE',
+  /** Went quiet, or declined. */
+  DORMANT: 'DORMANT',
+  /** Failed verification. Kept, not deleted — we need the record of why. */
+  REJECTED: 'REJECTED',
+} as const
+export type PartnerStatus = (typeof PartnerStatus)[keyof typeof PartnerStatus]
+
+export const PARTNER_STATUS_ORDER: PartnerStatus[] = [
+  'NEW',
+  'CONTACTED',
+  'VERIFIED',
+  'ACTIVE',
+]
+
+export const PARTNER_STATUS_LABEL: Record<PartnerStatus, string> = {
+  NEW: 'New',
+  CONTACTED: 'Contacted',
+  VERIFIED: 'Verified',
+  ACTIVE: 'Active',
+  DORMANT: 'Dormant',
+  REJECTED: 'Rejected',
+}
+
+export type PartnerExperience = 'NEW' | 'ONE_TO_THREE' | 'THREE_PLUS'
+
+export const PARTNER_EXPERIENCE_LABEL: Record<PartnerExperience, string> = {
+  NEW: 'New to sales',
+  ONE_TO_THREE: '1–3 years',
+  THREE_PLUS: '3+ years',
+}
+
+export interface AgentPartner {
+  id: string
+  /** Human-readable partner number, e.g. AGT-4192. */
+  code: string
+  fullName: string
+  whatsapp: string
+  email: string
+  experience: PartnerExperience | null
+  agencyName: string | null
+  operatingState: string | null
+
+  status: PartnerStatus
+  /** Partner code of whoever referred them, if anyone. */
+  referredByCode: string | null
+  /** Staff member who recruited or is handling them. */
+  ownerId: string | null
+
+  /**
+   * Payout readiness, not a promise of payment. Split out because the
+   * registration form lets people skip it — so "registered" and "can be
+   * paid" are genuinely different states, and the gap between them is the
+   * thing that stalls a first commission.
+   */
+  hasPhoto: boolean
+  hasBank: boolean
+  hasNin: boolean
+  hasTaxId: boolean
+
+  registeredAt: string
+  lastContactAt: string | null
+  notes: string
+}
+
+/** All four payout fields present — nothing blocks a commission transfer. */
+export function partnerPayoutReady(p: AgentPartner): boolean {
+  return p.hasPhoto && p.hasBank && p.hasNin && p.hasTaxId
+}

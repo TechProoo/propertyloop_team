@@ -44,11 +44,13 @@ import {
   THREADS,
 } from './seed'
 import { CHANNELS, DAILY_LOGS } from './seedCollab'
+import { PARTNERS } from './seedPartners'
 import type {
   DealStage,
   DocumentType,
   LeadStatus,
   ListingStatus,
+  PartnerStatus,
   PropertyDoc,
   ShootStage,
   ThreadSubject,
@@ -73,6 +75,7 @@ function freshData(): PersistedData {
     logs: DAILY_LOGS,
     channels: CHANNELS,
     staff: STAFF,
+    partners: PARTNERS,
   })
 }
 
@@ -96,6 +99,7 @@ function loadData(): PersistedData {
       logs: parsed.logs ?? base.logs,
       channels: parsed.channels ?? base.channels,
       staff: parsed.staff ?? base.staff,
+      partners: parsed.partners ?? base.partners,
     }
   } catch {
     // Private windows and cleared site data both land here.
@@ -589,6 +593,59 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   // keeps the history readable and is what the org document means by a
   // position being vacant.
 
+  /* ─── Agent partners ───────────────────────────────────────────────── */
+
+  const setPartnerStatus = useCallback((id: string, status: PartnerStatus) => {
+    setData((prev) => ({
+      ...prev,
+      partners: prev.partners.map((p) =>
+        p.id === id
+          ? {
+              ...p,
+              status,
+              // Moving someone past NEW means somebody spoke to them, so the
+              // contact clock stops here rather than needing a second click.
+              lastContactAt:
+                status !== 'NEW' && !p.lastContactAt
+                  ? new Date().toISOString()
+                  : p.lastContactAt,
+            }
+          : p,
+      ),
+    }))
+  }, [])
+
+  const assignPartner = useCallback((id: string, staffId: string | null) => {
+    setData((prev) => ({
+      ...prev,
+      partners: prev.partners.map((p) =>
+        p.id === id ? { ...p, ownerId: staffId } : p,
+      ),
+    }))
+  }, [])
+
+  const logPartnerContact = useCallback((id: string) => {
+    setData((prev) => ({
+      ...prev,
+      partners: prev.partners.map((p) =>
+        p.id === id
+          ? {
+              ...p,
+              lastContactAt: new Date().toISOString(),
+              status: p.status === 'NEW' ? 'CONTACTED' : p.status,
+            }
+          : p,
+      ),
+    }))
+  }, [])
+
+  const setPartnerNotes = useCallback((id: string, notes: string) => {
+    setData((prev) => ({
+      ...prev,
+      partners: prev.partners.map((p) => (p.id === id ? { ...p, notes } : p)),
+    }))
+  }, [])
+
   const addStaff = useCallback((input: NewStaffInput) => {
     const id = `staff-${Date.now()}`
     setData((prev) => ({
@@ -1002,6 +1059,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     updateTarget,
     addTarget,
     deleteTarget,
+    setPartnerStatus,
+    assignPartner,
+    logPartnerContact,
+    setPartnerNotes,
     addStaff,
     updateStaff,
     setStaffActive,

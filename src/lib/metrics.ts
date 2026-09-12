@@ -5,6 +5,7 @@
 // a number nobody can type is a number nobody can argue with.
 
 import type {
+  AgentPartner,
   Channel,
   ContentPiece,
   DailyLog,
@@ -18,6 +19,7 @@ import type {
   Thread,
   ThreadSubjectKind,
 } from './types'
+import { partnerPayoutReady } from './types'
 import { isWeekend, onDay, pct } from './format'
 
 /** Operations' response-time commitment, in minutes. */
@@ -524,4 +526,80 @@ export function impactSentences(impact: DeleteImpact): string[] {
  */
 export function assignableStaff(staff: Staff[], keepId?: string | null): Staff[] {
   return staff.filter((s) => s.active || (keepId != null && s.id === keepId))
+}
+
+/* ─── Agent partners ─────────────────────────────────────────────────── */
+
+export interface PartnerSnapshot {
+  total: number
+  /** Registered and never contacted — the number that embarrasses you. */
+  uncontacted: number
+  /** Uncontacted for more than 48 hours, the stated onboarding SLA. */
+  overdueContact: number
+  verified: number
+  active: number
+  /** Verified but something still blocks a commission transfer. */
+  cannotBePaid: number
+  /** Arrived through another partner's link. */
+  fromReferral: number
+  registeredThisWeek: number
+  unassigned: number
+}
+
+/** Operations' onboarding commitment for a new realtor, in hours. */
+export const PARTNER_CONTACT_SLA_HOURS = 48
+
+export function partnerContactOverdue(
+  p: AgentPartner,
+  now: Date = new Date(),
+): boolean {
+  if (p.lastContactAt) return false
+  if (p.status === 'REJECTED' || p.status === 'DORMANT') return false
+  const age = now.getTime() - new Date(p.registeredAt).getTime()
+  return age > PARTNER_CONTACT_SLA_HOURS * 3_600_000
+}
+
+export function partnerSnapshot(
+  partners: AgentPartner[],
+  now: Date = new Date(),
+): PartnerSnapshot {
+  const live = partners.filter(
+    (p) => p.status !== 'REJECTED' && p.status !== 'DORMANT',
+  )
+  return {
+    total: partners.length,
+    uncontacted: live.filter((p) => p.lastContactAt === null).length,
+    overdueContact: partners.filter((p) => partnerContactOverdue(p, now)).length,
+    verified: partners.filter((p) => p.status === 'VERIFIED').length,
+    active: partners.filter((p) => p.status === 'ACTIVE').length,
+    cannotBePaid: partners.filter(
+      (p) =>
+        (p.status === 'VERIFIED' || p.status === 'ACTIVE') &&
+        !partnerPayoutReady(p),
+    ).length,
+    fromReferral: partners.filter((p) => p.referredByCode !== null).length,
+    registeredThisWeek: partners.filter(
+      (p) =>
+        now.getTime() - new Date(p.registeredAt).getTime() < 7 * 86_400_000,
+    ).length,
+    unassigned: live.filter((p) => p.ownerId === null).length,
+  }
+}
+
+/** Which of the four payout requirements are still outstanding. */
+export function partnerPayoutGaps(p: AgentPartner): string[] {
+  const gaps: string[] = []
+  if (!p.hasPhoto) gaps.push('passport photo')
+  if (!p.hasBank) gaps.push('bank account')
+  if (!p.hasNin) gaps.push('NIN')
+  if (!p.hasTaxId) gaps.push('Payer ID or TIN')
+  return gaps
+}
+
+/** Partners a given partner brought in, by their code. */
+export function partnersReferredBy(
+  partners: AgentPartner[],
+  code: string,
+): AgentPartner[] {
+  return partners.filter((p) => p.referredByCode === code)
 }
