@@ -255,3 +255,33 @@ src/
 
 `src/lib/store.tsx` is the seam for the API: replacing it with an axios service
 layer should not require touching a single screen.
+
+## Deployment
+
+Its own Netlify site on `team.propertyloop.ng`, separate from the public
+website so a bad deploy here cannot take propertyloop.ng down. `netlify.toml`
+carries the build settings, so nothing needs clicking in the Netlify UI:
+
+| | |
+|---|---|
+| Build command | `npm run build` (`tsc -b && vite build` — typecheck included) |
+| Publish directory | `dist` |
+| Node | 20 |
+
+`public/_redirects` sends every path to `index.html` with a 200 so React
+Router owns the URL — without it a refresh on `/deals` is a Netlify 404.
+`public/_headers` adds the security set plus `X-Robots-Tag: noindex, nofollow`:
+the staff portal must not be findable in search.
+
+`VITE_API_URL` comes from `.env.production` at build time. It is a public URL
+and is baked into the bundle — never put a secret in a `VITE_` variable.
+
+Two things to know before the first deploy:
+
+- **CORS.** The backend allowlists `team.propertyloop.ng`. A deploy preview
+  runs on a `*.netlify.app` origin that is not on that list, so sign-in there
+  fails until the origin is added to `CORS_EXTRA_ORIGINS` on the API.
+- **The refresh cookie is cross-site.** The portal and the API sit on different
+  domains, so the session depends on `SameSite=None; Secure` — which only works
+  over HTTPS. Netlify serves HTTPS everywhere, so this holds in production, but
+  it is why the portal cannot be tested against a plain-HTTP backend.

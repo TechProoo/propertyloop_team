@@ -1,0 +1,17 @@
+# Staff portal. Its own Netlify site on team.propertyloop.ng, separate from the
+# public website build — a broken deploy here must never take propertyloop.ng
+# down with it.
+#
+# Redirects and headers deliberately live in public/_redirects and
+# public/_headers rather than here, matching the website. Vite copies public/
+# into dist/ verbatim, so the two files ship with the build and stay next to
+# the app they belong to. Keeping them out of this file also avoids the trap
+# where a [[redirects]] block here silently overrides the _redirects file.
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  # Vite 8 wants ^20.19 || >=22.12. Pin it so a Netlify image bump cannot
+  # change the build under us.
+  NODE_VERSION = "20"
