@@ -110,9 +110,24 @@ api.interceptors.response.use(
 /** Pulls a readable message out of whatever the API or network returned. */
 export function apiErrorMessage(error: unknown, fallback: string): string {
   const err = error as AxiosError<{ message?: string | string[] }>
+
   if (err?.code === 'ERR_NETWORK') {
     return 'Cannot reach the server. Check your connection and try again.'
   }
+
+  // Rate limiting reaches the client as "ThrottlerException: Too Many
+  // Requests", which reads like a bug and — on a sign-in screen — like a
+  // rejected password. Several people signing in from one office hit this
+  // together, so it has to say plainly that waiting fixes it.
+  if (err?.response?.status === 429) {
+    const retryAfter = Number(err.response.headers?.['retry-after'])
+    const wait =
+      Number.isFinite(retryAfter) && retryAfter > 0
+        ? `about ${retryAfter} second${retryAfter === 1 ? '' : 's'}`
+        : 'a minute'
+    return `Too many attempts. Wait ${wait} and try again — your password is probably fine.`
+  }
+
   const message = err?.response?.data?.message
   if (Array.isArray(message)) return message[0] ?? fallback
   return message ?? fallback
