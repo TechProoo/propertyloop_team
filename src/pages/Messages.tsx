@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { MessagesSquare, Send, Users } from 'lucide-react'
+import { ChevronLeft, MessagesSquare, Send, Users } from 'lucide-react'
 import { useCurrentUser, useStore } from '../lib/storeContext'
 import {
   directCounterpart,
@@ -55,6 +55,11 @@ export function Messages() {
   const openId = params.get('c')
   const selected = mine.find((c) => c.id === openId) ?? mine[0] ?? null
 
+  // Defaulting to the first channel is right on a desktop, where both panes
+  // are visible. On a phone it would skip the list entirely, so only an
+  // explicit choice opens the conversation there.
+  const openedOnPurpose = Boolean(openId)
+
   // Opening a channel marks it read. Keyed on the message count too, so a
   // message arriving while it is open does not leave a stale badge.
   const selectedId = selected?.id
@@ -91,7 +96,9 @@ export function Messages() {
       />
 
       <div className="grid gap-4 lg:grid-cols-[19rem_1fr]">
-        <div className="flex flex-col gap-3">
+        <div
+          className={`flex-col gap-3 ${openedOnPurpose ? 'hidden lg:flex' : 'flex'}`}
+        >
           <Card padded={false}>
             <div className="flex flex-col gap-1 p-2">
               {mine.map((c) => {
@@ -173,16 +180,19 @@ export function Messages() {
         </div>
 
         {selected ? (
-          <ChannelView
-            channel={selected}
-            title={channelTitle(selected)}
+          <div className={openedOnPurpose ? 'block' : 'hidden lg:block'}>
+            <ChannelView
+              channel={selected}
+              title={channelTitle(selected)}
             draft={draft}
             onDraft={setDraft}
-            onSend={() => {
-              sendMessage(selected.id, draft)
-              setDraft('')
-            }}
-          />
+              onBack={() => setParams({})}
+              onSend={() => {
+                sendMessage(selected.id, draft)
+                setDraft('')
+              }}
+            />
+          </div>
         ) : (
           <Empty>Select a conversation.</Empty>
         )}
@@ -206,12 +216,15 @@ function ChannelView({
   draft,
   onDraft,
   onSend,
+  onBack,
 }: {
   channel: Channel
   title: string
   draft: string
   onDraft: (v: string) => void
   onSend: () => void
+  /** Returns to the channel list. Only reachable below lg, where the list is hidden. */
+  onBack: () => void
 }) {
   const me = useCurrentUser()
   const { staffById } = useStore()
@@ -242,6 +255,14 @@ function ChannelView({
     <Card padded={false} accent="teal" className="flex flex-col">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line bg-teal-soft/20 p-4 pt-5">
         <div className="flex min-w-0 items-center gap-2.5">
+          <button
+            type="button"
+            onClick={onBack}
+            aria-label="Back to conversations"
+            className="-ml-1 shrink-0 rounded-lg p-1.5 text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink lg:hidden"
+          >
+            <ChevronLeft size={18} />
+          </button>
           {channel.kind === 'GROUP' ? (
             <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-gold to-[#d9a44e] text-white shadow-[var(--shadow-tile)]">
               <Users size={19} strokeWidth={1.9} />

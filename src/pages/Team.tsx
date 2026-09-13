@@ -247,7 +247,7 @@ function PersonCard({
 
       {summary.score !== null && <Progress value={summary.score} className="mt-3" />}
 
-      <dl className="mt-3 grid grid-cols-4 gap-2 border-t border-line pt-3">
+      <dl className="mt-3 grid grid-cols-2 gap-2 border-t border-line pt-3 sm:grid-cols-4">
         <Metric label="Sourced" value={summary.propertiesSourced} />
         <Metric label="Deals" value={summary.dealsOwned} />
         <Metric label="Leads" value={summary.leadsOwned} />

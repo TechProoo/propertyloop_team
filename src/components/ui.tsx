@@ -10,7 +10,7 @@
 import { useEffect } from 'react'
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { Check, X } from 'lucide-react'
+import { Check, MoveHorizontal, X } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { ACCENT, avatarAccent } from '../lib/accent'
 import type { Accent } from '../lib/accent'
@@ -592,8 +592,18 @@ export function Note({ children }: { children: ReactNode }) {
 
 export function TableWrap({ children }: { children: ReactNode }) {
   return (
-    <div className="overflow-x-auto rounded-2xl border border-line bg-surface shadow-[var(--shadow-tile)]">
-      {children}
+    <div>
+      <div className="overflow-x-auto rounded-2xl border border-line bg-surface shadow-[var(--shadow-tile)]">
+        {children}
+      </div>
+      {/* These tables carry seven or eight columns and cannot honestly fit a
+          phone. They scroll, but a reader who cannot see the edge assumes the
+          columns are missing rather than off-screen — so say so, on the sizes
+          where it is actually true. */}
+      <p className="mt-1.5 flex items-center gap-1 text-[11px] text-ink-3 lg:hidden">
+        <MoveHorizontal size={11} strokeWidth={2} />
+        Swipe the table sideways for more columns
+      </p>
     </div>
   )
 }

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Check, MessageSquare, Send } from 'lucide-react'
+import { Check, ChevronLeft, MessageSquare, Send } from 'lucide-react'
 import { useCurrentUser, useStore } from '../lib/storeContext'
 import { decodeSubject, encodeSubject, threadsForSubject } from '../lib/metrics'
 import { dateTime, displayName, initials, relative } from '../lib/format'
@@ -96,6 +96,11 @@ export function Threads() {
   const selected =
     threads.find((t) => t.id === openId) ?? visible[0] ?? threads[0] ?? null
 
+  // Same rule as Messages: defaulting to the first thread is right when both
+  // panes are on screen, but on a phone it would hide the list behind a
+  // thread nobody chose.
+  const openedOnPurpose = Boolean(openId)
+
   function select(id: string) {
     setParams({ open: id })
     setDraft('')
@@ -174,7 +179,7 @@ export function Threads() {
       )}
 
       <div className="grid gap-4 lg:grid-cols-[20rem_1fr]">
-        <div>
+        <div className={openedOnPurpose ? 'hidden lg:block' : 'block'}>
           <Select
             ariaLabel="Filter threads"
             value={filter}
@@ -237,17 +242,20 @@ export function Threads() {
         </div>
 
         {selected ? (
-          <ThreadView
-            thread={selected}
-            subjectLabel={subjectLabel(selected.subject)}
-            draft={draft}
-            onDraft={setDraft}
-            onSend={() => {
-              postMessage(selected.id, draft)
-              setDraft('')
-            }}
-            onToggleResolved={() => toggleThreadResolved(selected.id)}
-          />
+          <div className={openedOnPurpose ? 'block' : 'hidden lg:block'}>
+            <ThreadView
+              thread={selected}
+              subjectLabel={subjectLabel(selected.subject)}
+              draft={draft}
+              onDraft={setDraft}
+              onBack={() => setParams(pinned ? { subject: subjectParam ?? '' } : {})}
+              onSend={() => {
+                postMessage(selected.id, draft)
+                setDraft('')
+              }}
+              onToggleResolved={() => toggleThreadResolved(selected.id)}
+            />
+          </div>
         ) : (
           <Empty>Select a thread.</Empty>
         )}
@@ -279,6 +287,7 @@ function ThreadView({
   onDraft,
   onSend,
   onToggleResolved,
+  onBack,
 }: {
   thread: Thread
   subjectLabel: string | null
@@ -286,6 +295,8 @@ function ThreadView({
   onDraft: (v: string) => void
   onSend: () => void
   onToggleResolved: () => void
+  /** Returns to the thread list. Only reachable below lg. */
+  onBack: () => void
 }) {
   const me = useCurrentUser()
   const { staffById } = useStore()
@@ -298,7 +309,16 @@ function ThreadView({
   return (
     <Card padded={false} accent="teal" className="flex flex-col">
       <header className="flex flex-wrap items-start justify-between gap-3 border-b border-line bg-teal-soft/20 p-4 pt-5">
-        <div className="min-w-0">
+        <div className="flex min-w-0 items-start gap-1.5">
+          <button
+            type="button"
+            onClick={onBack}
+            aria-label="Back to threads"
+            className="-mt-0.5 -ml-1 shrink-0 rounded-lg p-1.5 text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink lg:hidden"
+          >
+            <ChevronLeft size={18} />
+          </button>
+          <div className="min-w-0">
           <h2 className="font-display text-lg leading-tight text-ink">{thread.title}</h2>
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
             <Badge tone={thread.subject.kind === 'GENERAL' ? 'neutral' : 'info'}>
@@ -310,6 +330,7 @@ function ThreadView({
             <span className="text-xs text-ink-3">
               · {thread.participantIds.length} participants
             </span>
+          </div>
           </div>
         </div>
         <Button size="sm" onClick={onToggleResolved}>
