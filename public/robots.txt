@@ -1,0 +1,9 @@
+# Staff portal. Nothing here is for the public, and nothing here should ever
+# appear in a search result.
+#
+# The real guard is X-Robots-Tag: noindex, nofollow on every response (see
+# _headers) plus the meta tag in index.html — a crawler has to be allowed to
+# fetch a page to see those. This file is the blunt instrument that stops
+# well-behaved crawlers bothering in the first place.
+User-agent: *
+Disallow: /

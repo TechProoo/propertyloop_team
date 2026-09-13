@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { AlertCircle, Eye, EyeOff, Loader2, LogIn } from 'lucide-react'
 import { useAuth } from '../lib/authContext'
 import { Note } from '../components/ui'
+import { useDocumentTitle } from '../lib/title'
 
 /**
  * Staff sign-in.
@@ -16,6 +17,7 @@ import { Note } from '../components/ui'
  */
 export function Login() {
   const { signIn } = useAuth()
+  useDocumentTitle('Sign in')
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')

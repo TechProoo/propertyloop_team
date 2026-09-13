@@ -5,8 +5,50 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="shortcut icon" href="/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!--
+      This is a private staff portal, so the metadata below is doing the
+      opposite of the website's job: keep it out of search entirely, and make
+      the link render properly when somebody pastes it into the team chat.
+
+      noindex is repeated as an X-Robots-Tag header in public/_headers, which
+      is what covers responses nobody executes the HTML of.
+    -->
     <meta name="robots" content="noindex, nofollow" />
-    <title>PropertyLoop — Team</title>
+    <title>PropertyLoop Team</title>
+    <meta
+      name="description"
+      content="Private staff portal for PropertyLoop Ltd — deals, inventory, leads, daily logs and internal messaging. Staff sign-in required."
+    />
+    <meta name="application-name" content="PropertyLoop Team" />
+    <meta name="theme-color" content="#1f6f43" />
+    <meta name="color-scheme" content="light" />
+    <!-- Nigerian numbers on a page full of prices: stop iOS turning figures
+         into phone links. -->
+    <meta name="format-detection" content="telephone=no" />
+
+    <!-- Link preview. A bare URL in the group chat looks like a phishing
+         attempt; a card with the logo on it does not. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="PropertyLoop" />
+    <meta property="og:title" content="PropertyLoop Team" />
+    <meta
+      property="og:description"
+      content="Private staff portal for PropertyLoop Ltd. Staff sign-in required."
+    />
+    <meta property="og:url" content="https://team.propertyloop.ng/" />
+    <meta property="og:image" content="https://team.propertyloop.ng/logo.png" />
+    <meta property="og:image:width" content="1695" />
+    <meta property="og:image:height" content="693" />
+    <meta property="og:image:alt" content="PropertyLoop" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="PropertyLoop Team" />
+    <meta
+      name="twitter:description"
+      content="Private staff portal for PropertyLoop Ltd. Staff sign-in required."
+    />
+    <meta name="twitter:image" content="https://team.propertyloop.ng/logo.png" />
+
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link

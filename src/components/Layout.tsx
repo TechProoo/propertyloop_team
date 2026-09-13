@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
   Building2,
   CalendarClock,
@@ -22,6 +22,7 @@ import { totalUnread } from '../lib/metrics'
 import { canAny } from '../lib/permissions'
 import type { Permission } from '../lib/permissions'
 import { displayName, initials, isoDate } from '../lib/format'
+import { useDocumentTitle } from '../lib/title'
 import { STAFF_ROLE_SHORT } from '../lib/types'
 import { Avatar } from './ui'
 import type { Accent } from '../lib/accent'
@@ -102,7 +103,16 @@ export function Layout() {
   const { currentUser, ops, threads, channels, logs } = useStore()
   const { signOut } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
+
+  // Derived from NAV rather than written out again, so a renamed section
+  // cannot end up with a tab title that disagrees with its own nav entry.
+  // Ahead of the early return below: hooks cannot be conditional.
+  useDocumentTitle(
+    NAV.find((item) => item.to !== '/' && location.pathname.startsWith(item.to))
+      ?.label ?? 'Dashboard',
+  )
 
   if (!currentUser) return null
 
