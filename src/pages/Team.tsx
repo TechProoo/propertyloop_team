@@ -32,7 +32,7 @@ import {
 export function Team() {
   const me = useCurrentUser()
   const { staff, targets, properties, deals, leads, ops, resetData } = useStore()
-  const canManageStaff = can(me.role, 'MANAGE_STAFF')
+  const canManageStaff = can(me, 'MANAGE_STAFF')
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState<Staff | null>(null)
   const [resetArmed, setResetArmed] = useState(false)

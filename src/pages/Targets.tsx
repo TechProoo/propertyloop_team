@@ -39,9 +39,9 @@ export function Targets() {
   const me = useCurrentUser()
   const { targets, staff } = useStore()
 
-  const seesAll = can(me.role, 'VIEW_ALL_TARGETS')
-  const canEdit = can(me.role, 'MANAGE_TARGETS')
-  const seesRevenue = can(me.role, 'VIEW_REVENUE')
+  const seesAll = can(me, 'VIEW_ALL_TARGETS')
+  const canEdit = can(me, 'MANAGE_TARGETS')
+  const seesRevenue = can(me, 'VIEW_REVENUE')
   const [editing, setEditing] = useState<Target | null>(null)
   const [addingFor, setAddingFor] = useState<string | null>(null)
   const people = seesAll ? staff : staff.filter((s) => s.id === me.id)

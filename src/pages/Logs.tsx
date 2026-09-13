@@ -49,7 +49,7 @@ import {
  */
 export function Logs() {
   const me = useCurrentUser()
-  const seesAll = can(me.role, 'VIEW_ALL_LOGS')
+  const seesAll = can(me, 'VIEW_ALL_LOGS')
   const [tab, setTab] = useState<'MINE' | 'TEAM'>(seesAll ? 'TEAM' : 'MINE')
 
   return (

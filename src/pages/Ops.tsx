@@ -57,10 +57,10 @@ export function Ops() {
   const me = useCurrentUser()
   const { ops, staff, staffById, assignOps, resolveOps } = useStore()
 
-  const canReviewKyc = can(me.role, 'REVIEW_KYC')
-  const canApprovePayout = can(me.role, 'APPROVE_WITHDRAWAL')
-  const canResolveDispute = can(me.role, 'RESOLVE_DISPUTE')
-  const canHandle = can(me.role, 'HANDLE_OPS')
+  const canReviewKyc = can(me, 'REVIEW_KYC')
+  const canApprovePayout = can(me, 'APPROVE_WITHDRAWAL')
+  const canResolveDispute = can(me, 'RESOLVE_DISPUTE')
+  const canHandle = can(me, 'HANDLE_OPS')
 
   const [kind, setKind] = useState('ALL')
   const [showResolved, setShowResolved] = useState('OPEN')
@@ -85,7 +85,7 @@ export function Ops() {
     if (item.kind === 'KYC') return canReviewKyc
     if (item.kind === 'WITHDRAWAL') return canApprovePayout
     if (item.kind === 'DISPUTE') return canResolveDispute
-    return can(me.role, 'HANDLE_OPS')
+    return can(me, 'HANDLE_OPS')
   }
 
   return (

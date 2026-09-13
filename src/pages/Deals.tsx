@@ -54,8 +54,8 @@ const MANDATE_TONE: Record<MandateType, 'ok' | 'info' | 'neutral'> = {
 export function Deals() {
   const me = useCurrentUser()
   const { deals, staffById, moveDeal } = useStore()
-  const editable = can(me.role, 'MANAGE_DEALS')
-  const seesRevenue = can(me.role, 'VIEW_REVENUE')
+  const editable = can(me, 'MANAGE_DEALS')
+  const seesRevenue = can(me, 'VIEW_REVENUE')
 
   const [kind, setKind] = useState('ALL')
   const [owner, setOwner] = useState('ALL')

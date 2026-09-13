@@ -1,117 +1,156 @@
-import { useNavigate } from 'react-router-dom'
-import { useStore } from '../lib/storeContext'
-import { displayName, initials } from '../lib/format'
-import { STAFF_ROLE_LABEL } from '../lib/types'
-import { Avatar, Note } from '../components/ui'
+import { useState } from 'react'
+import { AlertCircle, Eye, EyeOff, Loader2, LogIn } from 'lucide-react'
+import { useAuth } from '../lib/authContext'
+import { Note } from '../components/ui'
 
 /**
- * Role picker standing in for sign-in.
+ * Staff sign-in.
  *
- * There is no authentication here on purpose — the backend has no staff
- * accounts yet (Role is BUYER | AGENT | VENDOR | ADMIN, with no staff
- * concept), so there is nothing to authenticate against. Picking a person
- * here shows the portal as that role would see it, which is what makes the
- * permission boundaries reviewable before they are built for real.
+ * Email and password, checked against the API. Credentials come from
+ * backend/scripts/provision-staff.ts, which issues a unique temporary
+ * password per person.
+ *
+ * There is no account list on this screen on purpose. The old role picker
+ * published the whole org chart to anyone who opened the URL, which is a
+ * gift to somebody guessing at passwords.
  */
 export function Login() {
-  const { staff, signIn } = useStore()
-  const navigate = useNavigate()
+  const { signIn } = useAuth()
 
-  function pick(id: string) {
-    signIn(id)
-    navigate('/')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  const valid = email.trim() !== '' && password !== ''
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!valid || busy) return
+    setError(null)
+    setBusy(true)
+    try {
+      await signIn(email, password)
+      // No navigate() — the router swaps to the portal as soon as the auth
+      // context holds an account.
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not sign you in.')
+      setPassword('')
+    } finally {
+      setBusy(false)
+    }
   }
 
-  // A deactivated position cannot be signed into — it keeps its history but
-  // is no longer somebody who works here.
-  const active = staff.filter((s) => s.active)
-  const lagos = active.filter((s) => s.chapter === 'LAGOS')
-  const osun = active.filter((s) => s.chapter === 'OSUN')
-  const hidden = staff.length - active.length
-
   return (
-    <div className="mx-auto flex min-h-full max-w-3xl flex-col justify-center px-4 py-12">
-      <section className="pl-rise relative mb-8 overflow-hidden rounded-3xl bg-gradient-to-br from-primary-ink via-primary to-primary-light p-7 text-white shadow-[var(--shadow-lift)]">
-        <span className="pointer-events-none absolute -top-20 -right-12 h-56 w-56 rounded-full bg-amber-300/20 blur-3xl" />
-        <span className="pointer-events-none absolute -bottom-24 left-1/4 h-52 w-52 rounded-full bg-emerald-300/20 blur-3xl" />
-        <div className="relative flex items-center gap-4">
-          <img
-            src="/logo.png"
-            alt=""
-            className="h-14 w-14 rounded-2xl bg-white/95 object-contain p-1"
-          />
-          <div>
-            <h1 className="font-display text-3xl leading-tight">PropertyLoop Team</h1>
-            <p className="mt-1 text-sm text-white/70">
-              Internal portal — September 2026 structure
-            </p>
+    <div className="flex min-h-full items-center justify-center px-4 py-12">
+      <div className="w-full max-w-md">
+        <section className="pl-rise relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary-ink via-primary to-primary-light p-7 text-white shadow-[var(--shadow-lift)]">
+          <span className="pointer-events-none absolute -top-20 -right-12 h-52 w-52 rounded-full bg-amber-300/20 blur-3xl" />
+          <span className="pointer-events-none absolute -bottom-24 left-1/4 h-48 w-48 rounded-full bg-emerald-300/20 blur-3xl" />
+          <div className="relative flex items-center gap-3.5">
+            <img
+              src="/logo.png"
+              alt=""
+              className="h-12 w-12 rounded-2xl bg-white/95 object-contain p-1"
+            />
+            <div>
+              <h1 className="font-display text-2xl leading-tight">
+                PropertyLoop Team
+              </h1>
+              <p className="mt-0.5 text-[11px] tracking-[0.16em] text-amber-300 uppercase">
+                Staff portal
+              </p>
+            </div>
           </div>
+        </section>
+
+        <form
+          onSubmit={submit}
+          className="pl-rise mt-4 rounded-2xl border border-line bg-surface p-6 shadow-[var(--shadow-tile)]"
+        >
+          <h2 className="font-display text-lg text-ink">Sign in</h2>
+          <p className="mt-1 text-xs leading-relaxed text-ink-3">
+            Use the email and password you were given. If you have not been set
+            up yet, ask the MD.
+          </p>
+
+          <div className="mt-5 grid gap-3.5">
+            <label className="block">
+              <span className="mb-1.5 block text-[11px] font-semibold tracking-wider text-ink-3 uppercase">
+                Email
+              </span>
+              <input
+                type="email"
+                autoComplete="username"
+                autoFocus
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@propertyloop.ng"
+                className="w-full rounded-xl border border-line bg-surface px-3.5 py-2.5 text-sm text-ink outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/15"
+              />
+            </label>
+
+            <label className="block">
+              <span className="mb-1.5 block text-[11px] font-semibold tracking-wider text-ink-3 uppercase">
+                Password
+              </span>
+              <span className="relative block">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full rounded-xl border border-line bg-surface px-3.5 py-2.5 pr-11 text-sm text-ink outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/15"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  title={showPassword ? 'Hide password' : 'Show password'}
+                  className="absolute top-1/2 right-1.5 -translate-y-1/2 rounded-lg p-2 text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink"
+                >
+                  {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                </button>
+              </span>
+            </label>
+          </div>
+
+          {error && (
+            <p className="mt-4 flex items-start gap-2 rounded-xl border border-rose/25 bg-rose-soft/40 px-3.5 py-3 text-xs leading-relaxed text-rose-ink">
+              <AlertCircle size={14} className="mt-0.5 shrink-0" />
+              {error}
+            </p>
+          )}
+
+          <button
+            type="submit"
+            disabled={!valid || busy}
+            className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-b from-primary-light to-primary px-6 py-3 text-sm font-semibold text-white shadow-[var(--shadow-tile)] transition-all hover:from-primary hover:to-primary-ink active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {busy ? (
+              <>
+                <Loader2 size={15} className="animate-spin" />
+                Signing in…
+              </>
+            ) : (
+              <>
+                <LogIn size={15} />
+                Sign in
+              </>
+            )}
+          </button>
+        </form>
+
+        <div className="mt-4">
+          <Note>
+            Your password was issued for you alone and is not recoverable — if
+            you have lost it, the MD can issue a new one. Change it after your
+            first sign-in, especially if it reached you over WhatsApp.
+          </Note>
         </div>
-      </section>
-
-      <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold tracking-wide text-ink uppercase">
-        <span className="h-3.5 w-1 rounded-full bg-gradient-to-b from-green to-primary-light" />
-        Lagos — head office
-      </h2>
-      <div className="pl-stagger mb-6 grid gap-2 sm:grid-cols-2">
-        {lagos.map((s) => (
-          <button
-            key={s.id}
-            type="button"
-            onClick={() => pick(s.id)}
-            className="flex items-center gap-3 rounded-2xl border border-line bg-surface p-3 text-left shadow-[var(--shadow-tile)] transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-[var(--shadow-lift)]"
-          >
-            <Avatar initials={initials(s)} size="lg" seed={s.id} />
-            <div className="min-w-0">
-              <div className="truncate text-sm font-medium text-ink">
-                {displayName(s)}
-              </div>
-              <div className="truncate text-xs text-ink-3">
-                {STAFF_ROLE_LABEL[s.role]}
-              </div>
-            </div>
-          </button>
-        ))}
       </div>
-
-      <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold tracking-wide text-ink uppercase">
-        <span className="h-3.5 w-1 rounded-full bg-gradient-to-b from-violet to-[#9377d6]" />
-        Osun state chapter
-      </h2>
-      <div className="pl-stagger mb-8 grid gap-2 sm:grid-cols-2">
-        {osun.map((s) => (
-          <button
-            key={s.id}
-            type="button"
-            onClick={() => pick(s.id)}
-            className="flex items-center gap-3 rounded-2xl border border-line bg-surface p-3 text-left shadow-[var(--shadow-tile)] transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-[var(--shadow-lift)]"
-          >
-            <Avatar initials={initials(s)} size="lg" seed={s.id} />
-            <div className="min-w-0">
-              <div className="truncate text-sm font-medium text-ink">
-                {displayName(s)}
-              </div>
-              <div className="truncate text-xs text-ink-3">
-                {STAFF_ROLE_LABEL[s.role]}
-              </div>
-            </div>
-          </button>
-        ))}
-      </div>
-
-      {hidden > 0 && (
-        <p className="mb-3 text-xs text-ink-3">
-          {hidden} deactivated {hidden === 1 ? 'position is' : 'positions are'} not
-          shown.
-        </p>
-      )}
-
-      <Note>
-        This is a frontend shell. There is no password and no session — picking
-        a name shows the portal as that role would see it. Every figure inside
-        is invented sample data, and the permission gating shapes the interface
-        only; it does not secure anything until staff roles exist in the API.
-      </Note>
     </div>
   )
 }

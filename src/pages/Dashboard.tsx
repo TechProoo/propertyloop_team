@@ -55,7 +55,7 @@ export function Dashboard() {
     store
 
   const snap = companySnapshot({ properties, deals, leads, shoots, content, ops })
-  const seesEverything = can(me.role, 'VIEW_ALL_TARGETS')
+  const seesEverything = can(me, 'VIEW_ALL_TARGETS')
   const myScore = staffScore(targets, me.id)
 
   return (
@@ -71,7 +71,7 @@ export function Dashboard() {
       <div className="mt-6 grid gap-4 lg:grid-cols-2">
         <MyWork />
         <div className="flex flex-col gap-4">
-          {can(me.role, 'HANDLE_OPS') && <OpsAlert />}
+          {can(me, 'HANDLE_OPS') && <OpsAlert />}
           <ActiveThreads />
         </div>
       </div>

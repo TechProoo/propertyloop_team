@@ -17,6 +17,7 @@ import {
   X,
 } from 'lucide-react'
 import { useStore } from '../lib/storeContext'
+import { useAuth } from '../lib/authContext'
 import { totalUnread } from '../lib/metrics'
 import { canAny } from '../lib/permissions'
 import type { Permission } from '../lib/permissions'
@@ -98,14 +99,15 @@ const NAV_ICON: Record<Accent, string> = {
 }
 
 export function Layout() {
-  const { currentUser, signOut, ops, threads, channels, logs } = useStore()
+  const { currentUser, ops, threads, channels, logs } = useStore()
+  const { signOut } = useAuth()
   const navigate = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
 
   if (!currentUser) return null
 
   const visible = NAV.filter(
-    (item) => item.permissions.length === 0 || canAny(currentUser.role, item.permissions),
+    (item) => item.permissions.length === 0 || canAny(currentUser, item.permissions),
   )
 
   const myOpenOps = ops.filter(
@@ -129,8 +131,8 @@ export function Layout() {
     return 0
   }
 
-  function handleSignOut() {
-    signOut()
+  async function handleSignOut() {
+    await signOut()
     navigate('/login')
   }
 

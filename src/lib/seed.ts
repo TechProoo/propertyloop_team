@@ -20,6 +20,7 @@ import type {
   Thread,
 } from './types'
 import { DocumentType } from './types'
+import { ROLE_PERMISSIONS } from './permissions'
 
 const DAY = 86_400_000
 
@@ -50,6 +51,7 @@ export const STAFF: Staff[] = [
     letter: 'A',
     name: null,
     role: 'MD_CEO',
+    permissions: ROLE_PERMISSIONS['MD_CEO'],
     chapter: 'LAGOS',
     email: null,
     reportsTo: null,
@@ -60,6 +62,7 @@ export const STAFF: Staff[] = [
     letter: 'B',
     name: null,
     role: 'GM',
+    permissions: ROLE_PERMISSIONS['GM'],
     chapter: 'LAGOS',
     email: null,
     reportsTo: 'staff-a',
@@ -70,6 +73,7 @@ export const STAFF: Staff[] = [
     letter: 'C',
     name: 'Ola',
     role: 'PROPERTY_LISTING',
+    permissions: ROLE_PERMISSIONS['PROPERTY_LISTING'],
     chapter: 'LAGOS',
     email: null,
     reportsTo: 'staff-b',
@@ -80,6 +84,7 @@ export const STAFF: Staff[] = [
     letter: 'C',
     name: 'Sodiq (1st)',
     role: 'PROPERTY_LISTING',
+    permissions: ROLE_PERMISSIONS['PROPERTY_LISTING'],
     chapter: 'LAGOS',
     secondaryChapter: 'OSUN',
     email: null,
@@ -91,6 +96,7 @@ export const STAFF: Staff[] = [
     letter: 'D',
     name: null,
     role: 'MARKETING',
+    permissions: ROLE_PERMISSIONS['MARKETING'],
     chapter: 'LAGOS',
     email: null,
     reportsTo: 'staff-b',
@@ -101,6 +107,7 @@ export const STAFF: Staff[] = [
     letter: 'E',
     name: 'Ngozi',
     role: 'OPERATIONS',
+    permissions: ROLE_PERMISSIONS['OPERATIONS'],
     chapter: 'LAGOS',
     email: null,
     reportsTo: 'staff-b',
@@ -111,6 +118,7 @@ export const STAFF: Staff[] = [
     letter: 'F',
     name: null,
     role: 'AMBASSADOR',
+    permissions: ROLE_PERMISSIONS['AMBASSADOR'],
     chapter: 'LAGOS',
     email: null,
     reportsTo: 'staff-b',
@@ -121,6 +129,7 @@ export const STAFF: Staff[] = [
     letter: 'G',
     name: null,
     role: 'SECRETARY',
+    permissions: ROLE_PERMISSIONS['SECRETARY'],
     chapter: 'LAGOS',
     email: null,
     reportsTo: 'staff-b',
@@ -131,6 +140,7 @@ export const STAFF: Staff[] = [
     letter: 'C',
     name: 'Sodiq (2nd)',
     role: 'PROPERTY_LISTING',
+    permissions: ROLE_PERMISSIONS['PROPERTY_LISTING'],
     chapter: 'OSUN',
     email: null,
     reportsTo: 'staff-b',

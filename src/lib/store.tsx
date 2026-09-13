@@ -11,7 +11,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
+import type { Staff } from './types'
+import { ROLE_PERMISSIONS } from './permissions'
 import { StoreContext } from './storeContext'
+import { useAuth } from './authContext'
 import type {
   ContentPatch,
   DealPatch,
@@ -57,7 +60,6 @@ import type {
 } from './types'
 import { ALL_STAFF_CHANNEL_ID, DERIVED_OPS_KINDS } from './types'
 
-const SESSION_KEY = 'pl-team.session'
 const DATA_KEY = 'pl-team.data'
 
 function freshData(): PersistedData {
@@ -109,13 +111,7 @@ function loadData(): PersistedData {
 
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [data, setData] = useState<PersistedData>(loadData)
-  const [currentUserId, setCurrentUserId] = useState<string | null>(() => {
-    try {
-      return localStorage.getItem(SESSION_KEY)
-    } catch {
-      return null
-    }
-  })
+  const { account } = useAuth()
 
   useEffect(() => {
     try {
@@ -125,22 +121,44 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
   }, [data])
 
-  useEffect(() => {
-    try {
-      if (currentUserId) localStorage.setItem(SESSION_KEY, currentUserId)
-      else localStorage.removeItem(SESSION_KEY)
-    } catch {
-      // Same as above: a failed write must not break sign-in.
+  /**
+   * The signed-in staff member.
+   *
+   * Identity, position and permissions come from the API. The id is bridged
+   * onto a seeded staff record of the same position so the sample workload
+   * ("your queue", "your targets") still resolves — the records below are
+   * still fixtures, and a real cuid matches none of them. When the pages are
+   * wired to live endpoints this mapping goes and account.staffProfile.id is
+   * used directly.
+   */
+  const currentUser = useMemo<Staff | null>(() => {
+    const profile = account?.staffProfile
+    if (!account || !profile) return null
+
+    const sample =
+      data.staff.find(
+        (s) => s.role === profile.staffRole && s.chapter === profile.chapter,
+      ) ?? data.staff.find((s) => s.role === profile.staffRole)
+
+    return {
+      id: sample?.id ?? profile.id,
+      letter: profile.letter,
+      name: account.name,
+      role: profile.staffRole,
+      chapter: profile.chapter,
+      ...(profile.secondaryChapter && {
+        secondaryChapter: profile.secondaryChapter,
+      }),
+      email: account.email,
+      reportsTo: sample?.reportsTo ?? null,
+      active: profile.active,
+      // Server-issued, so a grant or revoke on one person is honoured here
+      // rather than being re-derived from their position.
+      permissions: profile.permissions,
     }
-  }, [currentUserId])
+  }, [account, data.staff])
 
-  const currentUser = useMemo(
-    () => data.staff.find((s) => s.id === currentUserId) ?? null,
-    [data.staff, currentUserId],
-  )
-
-  const signIn = useCallback((staffId: string) => setCurrentUserId(staffId), [])
-  const signOut = useCallback(() => setCurrentUserId(null), [])
+  const currentUserId = currentUser?.id ?? null
 
   const staffById = useCallback(
     (id: string | null) =>
@@ -650,7 +668,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const id = `staff-${Date.now()}`
     setData((prev) => ({
       ...prev,
-      staff: [...prev.staff, { id, ...input, active: true }],
+      staff: [
+        ...prev.staff,
+        // A new position starts on its own defaults, exactly as the API does
+        // when a StaffProfile is created.
+        {
+          id,
+          ...input,
+          active: true,
+          permissions: ROLE_PERMISSIONS[input.role],
+        },
+      ],
       // A new colleague joins the all-staff channel immediately, or they
       // cannot see anything the team has agreed.
       channels: prev.channels.map((c) =>
@@ -1035,8 +1063,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const value: StoreValue = {
     ...data,
     currentUser,
-    signIn,
-    signOut,
     staffById,
     addProperty,
     addLead,

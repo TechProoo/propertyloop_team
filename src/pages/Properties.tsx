@@ -65,9 +65,9 @@ export function Properties() {
   const me = useCurrentUser()
   const { properties, staffById, setPropertyStatus, toggleDocVerified } = useStore()
 
-  const canPublish = can(me.role, 'PUBLISH_PROPERTY')
-  const canVerify = can(me.role, 'VERIFY_DOCUMENTS')
-  const canAdd = can(me.role, 'MANAGE_PROPERTIES')
+  const canPublish = can(me, 'PUBLISH_PROPERTY')
+  const canVerify = can(me, 'VERIFY_DOCUMENTS')
+  const canAdd = can(me, 'MANAGE_PROPERTIES')
 
   const [status, setStatus] = useState('ALL')
   const [chapter, setChapter] = useState('ALL')

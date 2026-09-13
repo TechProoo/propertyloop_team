@@ -62,8 +62,8 @@ export function Leads() {
   const me = useCurrentUser()
   const { leads, staffById, propertyById, setLeadStatus, toggleLeadQualified } = useStore()
 
-  const canQualify = can(me.role, 'QUALIFY_LEAD')
-  const canManage = can(me.role, 'MANAGE_LEADS')
+  const canQualify = can(me, 'QUALIFY_LEAD')
+  const canManage = can(me, 'MANAGE_LEADS')
 
   const [status, setStatus] = useState('ALL')
   const [owner, setOwner] = useState('ALL')

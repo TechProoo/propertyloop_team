@@ -48,6 +48,10 @@ export const Permission = {
   VIEW_ALL_LOGS: 'VIEW_ALL_LOGS',
   /** Add, suspend or edit staff. */
   MANAGE_STAFF: 'MANAGE_STAFF',
+  /** Work the agent partner directory — verify, assign, chase. */
+  MANAGE_PARTNERS: 'MANAGE_PARTNERS',
+  /** Sign off a partner commission for payment. */
+  APPROVE_COMMISSION: 'APPROVE_COMMISSION',
 } as const
 export type Permission = (typeof Permission)[keyof typeof Permission]
 
@@ -68,11 +72,14 @@ export const PERMISSION_LABEL: Record<Permission, string> = {
   RESOLVE_DISPUTE: 'Resolve disputes',
   VIEW_ALL_LOGS: 'Read all daily logs',
   MANAGE_STAFF: 'Manage staff',
+  MANAGE_PARTNERS: 'Manage agent partners',
+  APPROVE_COMMISSION: 'Approve partner commissions',
 }
 
 /** Permissions that move money or touch identity documents. */
 export const SENSITIVE_PERMISSIONS: Permission[] = [
   'APPROVE_WITHDRAWAL',
+  'APPROVE_COMMISSION',
   'REVIEW_KYC',
   'RESOLVE_DISPUTE',
   'MANAGE_STAFF',
@@ -100,6 +107,7 @@ export const ROLE_PERMISSIONS: Record<StaffRole, Permission[]> = {
     'HANDLE_OPS',
     'RESOLVE_DISPUTE',
     'VIEW_ALL_LOGS',
+    'MANAGE_PARTNERS',
   ],
 
   // Ola and Sodiq (1st). Inventory quality is theirs end to end.
@@ -124,6 +132,7 @@ export const ROLE_PERMISSIONS: Record<StaffRole, Permission[]> = {
     'HANDLE_OPS',
     'REVIEW_KYC',
     'MANAGE_PROPERTIES',
+    'MANAGE_PARTNERS',
   ],
 
   // On camera. Needs to see what is being shot and nothing else.
@@ -134,10 +143,24 @@ export const ROLE_PERMISSIONS: Record<StaffRole, Permission[]> = {
   SECRETARY: ['MANAGE_CONTENT', 'HANDLE_OPS'],
 }
 
-export function can(role: StaffRole, permission: Permission): boolean {
-  return ROLE_PERMISSIONS[role].includes(permission)
+/**
+ * What a person may do.
+ *
+ * Reads the grants the API issued for THIS person, never a lookup from their
+ * position. ROLE_PERMISSIONS below is only the default applied when a profile
+ * is created — an individual can be granted or revoked permissions
+ * afterwards, and deriving from the role here would silently ignore that.
+ */
+export function can(
+  staff: { permissions: Permission[] },
+  permission: Permission,
+): boolean {
+  return staff.permissions.includes(permission)
 }
 
-export function canAny(role: StaffRole, permissions: Permission[]): boolean {
-  return permissions.some((p) => can(role, p))
+export function canAny(
+  staff: { permissions: Permission[] },
+  permissions: Permission[],
+): boolean {
+  return permissions.some((p) => can(staff, p))
 }

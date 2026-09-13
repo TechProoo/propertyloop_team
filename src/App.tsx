@@ -1,6 +1,8 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import type { ReactElement } from 'react'
 import { StoreProvider } from './lib/store'
+import { AuthProvider } from './lib/auth'
+import { useAuth } from './lib/authContext'
 import { useStore } from './lib/storeContext'
 import { canAny } from './lib/permissions'
 import type { Permission } from './lib/permissions'
@@ -21,9 +23,23 @@ import { Partners } from './pages/Partners'
 
 /** Redirects to sign-in when nobody is selected. */
 function RequireAuth({ children }: { children: ReactElement }) {
-  const { currentUser } = useStore()
-  if (!currentUser) return <Navigate to="/login" replace />
+  const { account, loading } = useAuth()
+  // Hold the route while the refresh cookie is being exchanged, or a reload
+  // bounces a signed-in person to the sign-in screen for a frame.
+  if (loading) return <Booting />
+  if (!account?.staffProfile) return <Navigate to="/login" replace />
   return children
+}
+
+function Booting() {
+  return (
+    <div className="flex min-h-full items-center justify-center">
+      <div className="flex items-center gap-2.5 text-sm text-ink-3">
+        <span className="h-4 w-4 animate-spin rounded-full border-2 border-line border-t-primary" />
+        Signing you in…
+      </div>
+    </div>
+  )
 }
 
 /**
@@ -40,14 +56,14 @@ function RequirePermission({
 }) {
   const { currentUser } = useStore()
   if (!currentUser) return <Navigate to="/login" replace />
-  if (!canAny(currentUser.role, permissions)) return <Navigate to="/" replace />
+  if (!canAny(currentUser, permissions)) return <Navigate to="/" replace />
   return children
 }
 
 function Router() {
   return (
     <Routes>
-      <Route path="/login" element={<Login />} />
+      <Route path="/login" element={<LoginRoute />} />
       <Route
         element={
           <RequireAuth>
@@ -115,10 +131,19 @@ function Router() {
   )
 }
 
+function LoginRoute() {
+  const { account, loading } = useAuth()
+  if (loading) return <Booting />
+  if (account?.staffProfile) return <Navigate to="/" replace />
+  return <Login />
+}
+
 export default function App() {
   return (
-    <StoreProvider>
-      <Router />
-    </StoreProvider>
+    <AuthProvider>
+      <StoreProvider>
+        <Router />
+      </StoreProvider>
+    </AuthProvider>
   )
 }

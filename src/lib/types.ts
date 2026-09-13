@@ -8,6 +8,8 @@
 // Note: tsconfig sets `erasableSyntaxOnly`, so these are const objects +
 // union types rather than TS enums.
 
+import type { Permission } from './permissions'
+
 /* ─── Staff ──────────────────────────────────────────────────────────── */
 
 // The seven positions in the September 2026 structure. `Role` in the backend
@@ -59,6 +61,11 @@ export interface Staff {
   email: string | null
   reportsTo: string | null
   active: boolean
+  /**
+   * What this person may actually do. Issued by the API per person, not
+   * derived from their position — see can() in permissions.ts.
+   */
+  permissions: Permission[]
 }
 
 /* ─── Developer & mandate pipeline ───────────────────────────────────── */

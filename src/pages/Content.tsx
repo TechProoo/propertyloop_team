@@ -52,7 +52,7 @@ export function Content() {
   const { shoots, content, propertyById, staffById, setShootStage, markShootPrepped } =
     useStore()
 
-  const editable = can(me.role, 'MANAGE_CONTENT')
+  const editable = can(me, 'MANAGE_CONTENT')
   const [stage, setStage] = useState('ALL')
   const [newShoot, setNewShoot] = useState(false)
   const [editShoot, setEditShoot] = useState<Shoot | null>(null)

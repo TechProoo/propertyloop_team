@@ -52,10 +52,7 @@ export interface PersistedData {
 }
 
 export interface StoreValue extends PersistedData {
-  staff: Staff[]
   currentUser: Staff | null
-  signIn: (staffId: string) => void
-  signOut: () => void
 
   staffById: (id: string | null) => Staff | null
   propertyById: (id: string | null) => Property | null

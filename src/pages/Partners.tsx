@@ -87,7 +87,7 @@ export function Partners() {
     logPartnerContact,
   } = useStore()
 
-  const canManage = can(me.role, 'MANAGE_LEADS')
+  const canManage = can(me, 'MANAGE_LEADS')
   const [status, setStatus] = useState('ALL')
   const [owner, setOwner] = useState('ALL')
   const [query, setQuery] = useState('')
