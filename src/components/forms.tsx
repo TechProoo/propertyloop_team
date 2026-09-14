@@ -46,6 +46,7 @@ import {
   TextInput,
   Toggle,
 } from './ui'
+import { PendingPhotos, SavedPhotos } from './PhotoManager'
 
 /** Naira typed as "145000000" or "145,000,000" — both should work. */
 function parseNaira(raw: string): number {
@@ -175,6 +176,7 @@ export function PropertyForm({
   const [docs, setDocs] = useState<DocumentType[]>(
     existing ? existing.documents.filter((d) => d.present).map((d) => d.type) : [],
   )
+  const [newPhotos, setNewPhotos] = useState<File[]>([])
 
   const linkable = deals.filter(
     (d) => d.stage !== 'LOST' && d.kind !== 'ADVERTISER',
@@ -207,7 +209,7 @@ export function PropertyForm({
         unitsSold: Math.min(parseCount(unitsSold), Math.max(1, parseCount(units, 1))),
       })
     } else {
-      addProperty(shared)
+      addProperty({ ...shared, photos: newPhotos })
     }
     onClose()
   }
@@ -320,11 +322,17 @@ export function PropertyForm({
           </div>
         </Field>
 
+        <Field label="Photos">
+          {editing ? (
+            <SavedPhotos propertyId={existing.id} />
+          ) : (
+            <PendingPhotos files={newPhotos} onChange={setNewPhotos} />
+          )}
+        </Field>
+
         {editing && (
           <p className="text-xs text-ink-3">
-            {existing.photoCount} photo{existing.photoCount === 1 ? '' : 's'} ·{' '}
-            {existing.hasVideo ? 'video tour uploaded' : 'no video yet'} — counted from
-            what is actually uploaded to the listing, not typed in here.
+            {existing.hasVideo ? 'Video tour uploaded.' : 'No video tour yet.'}
           </p>
         )}
 

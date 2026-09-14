@@ -84,6 +84,8 @@ export interface ListingDto {
   status: ListingStatus
   verified: boolean
   photoCount: number
+  /** Already rewritten for display by the API. */
+  images: string[]
   hasVideo: boolean
   documents: { type: DocumentType; present: boolean; verified: boolean }[]
   sourcedById: string | null

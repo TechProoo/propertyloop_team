@@ -245,6 +245,27 @@ export const propertiesApi = {
     )
     return toProperty(data)
   },
+  /**
+   * One photo per request, so a failure names exactly which photo did not land.
+   * The server makes the first photo on a listing its cover.
+   */
+  async uploadPhoto(id: string, photo: Blob, filename: string): Promise<Property> {
+    const form = new FormData()
+    form.append('file', photo, filename)
+    const { data } = await api.post<ListingDto>(`/staff/listings/${id}/photos`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      // A photo on a slow office line is not a cold start; give it room.
+      timeout: 120_000,
+    })
+    return toProperty(data)
+  },
+  /** Reorder or remove photos. Whatever comes first is the cover. */
+  async setPhotos(id: string, images: string[]): Promise<Property> {
+    const { data } = await api.patch<ListingDto>(`/staff/listings/${id}/photos`, {
+      images,
+    })
+    return toProperty(data)
+  },
   remove: (id: string) =>
     api.delete(`/staff/listings/${id}`).then(() => undefined),
 }

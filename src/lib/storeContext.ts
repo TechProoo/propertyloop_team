@@ -101,6 +101,10 @@ export interface StoreValue extends PersistedData {
      pointing at an id that no longer exists. Use deleteImpact() to show
      what will happen before calling these. */
   deleteProperty: (id: string) => void
+  /** The server's id for a record — different for one created this session. */
+  serverIdFor: (id: string) => string
+  /** Replace a property with the server's copy, keeping the id screens hold. */
+  applyPropertyFromServer: (id: string, saved: Property) => void
   deleteLead: (id: string) => void
   deleteDeal: (id: string) => void
   deleteOpsItem: (id: string) => void
@@ -178,6 +182,8 @@ export interface NewPropertyInput {
   photoCount: number
   /** Which of the four documents the owner has actually handed over. */
   documentsPresent: DocumentType[]
+  /** Uploaded straight after the property is filed, first as the cover. */
+  photos?: File[]
 }
 
 export interface NewLeadInput {

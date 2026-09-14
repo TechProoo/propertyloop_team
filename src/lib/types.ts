@@ -225,6 +225,8 @@ export interface Property {
   /** mirrors Listing.verified */
   verified: boolean
   photoCount: number
+  /** Display URLs, cover first. */
+  images: string[]
   hasVideo: boolean
   documents: PropertyDoc[]
   /**

@@ -107,6 +107,7 @@ export function toProperty(dto: ListingDto): Property {
     status: dto.status,
     verified: dto.verified,
     photoCount: dto.photoCount,
+    images: dto.images ?? [],
     hasVideo: dto.hasVideo,
     documents: dto.documents,
     // Agent-owned stock has no staff sourcer. Empty string rather than null

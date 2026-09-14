@@ -20,6 +20,7 @@ import type { ReactNode } from 'react'
 import type { Staff } from './types'
 import { StoreContext } from './storeContext'
 import { useAuth } from './authContext'
+import { shrinkForUpload } from './imageResize'
 import { apiErrorMessage } from './api'
 import type {
   ContentPatch,
@@ -47,6 +48,7 @@ import type {
   LeadStatus,
   ListingStatus,
   PartnerStatus,
+  Property,
   PropertyDoc,
   ShootStage,
   ThreadSubject,
@@ -339,6 +341,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             status: 'PENDING_REVIEW',
             verified: false,
             photoCount: input.photoCount,
+            images: [],
             hasVideo: false,
             documents,
             // Attribution is taken from who is signed in, never chosen from a
@@ -353,8 +356,28 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         ],
       }))
       sync(
-        () => propertiesApi.create(input),
-        (saved) => linkId(id, saved.id),
+        async () => {
+          const { photos = [], ...fields } = input
+          let saved = await propertiesApi.create(fields)
+          // Photos need the listing to exist first. One at a time, so a
+          // failure stops at the photo that failed instead of guessing.
+          for (const photo of photos) {
+            const { blob, name } = await shrinkForUpload(photo)
+            saved = await propertiesApi.uploadPhoto(saved.id, blob, name)
+          }
+          return saved
+        },
+        (saved) => {
+          linkId(id, saved.id)
+          // Swapped in, not just aliased: the photo count and cover the
+          // screens show come from the server's copy.
+          setData((prev) => ({
+            ...prev,
+            properties: prev.properties.map((p) =>
+              p.id === id ? { ...saved, id } : p,
+            ),
+          }))
+        },
       )
       return id
     },
@@ -513,6 +536,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     },
     [sync, remoteId],
   )
+
+  const serverIdFor = useCallback((id: string) => remoteId(id), [remoteId])
+
+  /** For work done outside a mutator — a photo upload — that returns the record. */
+  const applyPropertyFromServer = useCallback((id: string, saved: Property) => {
+    setData((prev) => ({
+      ...prev,
+      properties: prev.properties.map((p) => (p.id === id ? { ...saved, id } : p)),
+    }))
+  }, [])
 
   const updateLead = useCallback(
     (id: string, patch: LeadPatch) => {
@@ -1442,6 +1475,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     updateDeal,
     updateTask,
     deleteProperty,
+    serverIdFor,
+    applyPropertyFromServer,
     deleteLead,
     deleteDeal,
     deleteOpsItem,
