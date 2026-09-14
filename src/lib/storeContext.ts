@@ -54,6 +54,16 @@ export interface PersistedData {
 export interface StoreValue extends PersistedData {
   currentUser: Staff | null
 
+  /* ── Loading and failure ───────────────────────────────────────────
+     Writes are optimistic: the local change lands at once and the request
+     follows. `error` is how a failed write is admitted rather than swallowed
+     — the screen has already moved, so something has to say it did not
+     stick. `refresh` re-reads everything from the API. */
+  loading: boolean
+  error: string | null
+  dismissError: () => void
+  refresh: () => void
+
   staffById: (id: string | null) => Staff | null
   propertyById: (id: string | null) => Property | null
   dealById: (id: string | null) => Deal | null
@@ -229,7 +239,11 @@ export type DealPatch = Partial<
   >
 > & { nextActionInDays?: number | null }
 
-export type TaskPatch = Partial<Pick<OpsItem, 'subject' | 'assigneeId' | 'urgent'>>
+// `resolved` is here because resolveOps goes through the same endpoint —
+// the ops queue has one update call, not one per field.
+export type TaskPatch = Partial<
+  Pick<OpsItem, 'subject' | 'assigneeId' | 'urgent' | 'resolved'>
+>
 
 export interface NewShootInput {
   title: string

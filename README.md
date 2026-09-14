@@ -9,19 +9,24 @@ npm run build    # tsc -b && vite build
 npm run lint
 ```
 
-## This is a frontend shell
+## Everything here is real
 
-There is **no backend**. Every number, name, property and message is invented
-sample data in [`src/lib/seed.ts`](src/lib/seed.ts). Nothing here should ever be
-quoted as a real PropertyLoop figure.
+Every collection is read from the API and every change is written back to it.
+There is no sample data left in this repo — if a number looks wrong, it is
+wrong in the database, not invented here.
 
-Sign-in is a role picker, not authentication — the backend has no staff accounts
-to authenticate against. Picking a person shows the portal as that role would
-see it, which is what makes the permission boundaries reviewable before they are
-built.
+Sign-in is real authentication against a staff account, and the permissions the
+portal enforces are the same ones the server issues, so what a screen offers and what the API allows cannot drift apart.
 
-State lives in `localStorage` under `pl-team.*`, so edits survive a reload and
-clearing site data resets everything.
+### Writes are optimistic
+
+A change lands on screen immediately and the request follows it. That keeps the
+portal quick on a Lagos connection, and it is why the store surfaces an error
+banner: when a write fails, the screen has already moved, so something has to
+say it did not stick. Failing writes reload the affected data from the server
+rather than trying to reverse one change — by the time a request fails the
+local state may have moved on, and the server's version is the only one that is
+definitely true.
 
 ## Two things must land in the API before real logins
 
@@ -243,18 +248,23 @@ src/
 │   ├── types.ts          domain types; schema mirrors marked in comments
 │   ├── accent.ts         the colour system — one hue per business area
 │   ├── permissions.ts    per-position access (UI-only until the API catches up)
-│   ├── seed.ts           commercial sample data — properties, deals, leads
-│   ├── seedCollab.ts     daily logs and channel messages
-│   ├── store.tsx         StoreProvider; each mutator is the shape of one HTTP call
+│   ├── store.tsx         StoreProvider; optimistic writes over the API
 │   ├── storeContext.ts   context + useStore / useCurrentUser
 │   ├── metrics.ts        every displayed number is derived here, never stored
 │   └── format.ts         naira, dates, initials
+├── api/
+│   ├── dto.ts            what the API actually sends
+│   ├── map.ts            wire shape → domain shape; the only module knowing both
+│   └── collections.ts    one module per collection, returning domain types
 ├── components/           Layout (permission-aware nav) + ui primitives
 └── pages/                one file per screen
 ```
 
-`src/lib/store.tsx` is the seam for the API: replacing it with an axios service
-layer should not require touching a single screen.
+The seam held: wiring all twelve collections to the API changed `store.tsx` and
+added `src/api/`, without touching a single screen. Where the API names things
+differently — a property is a `listing`, a log's date is its `day`, threads are
+keyed by user id rather than staff id — `map.ts` reconciles it, so no component
+has to know.
 
 ## Deployment
 

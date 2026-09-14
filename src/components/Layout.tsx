@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
+  AlertTriangle,
   Building2,
   CalendarClock,
   ClipboardList,
@@ -100,7 +101,8 @@ const NAV_ICON: Record<Accent, string> = {
 }
 
 export function Layout() {
-  const { currentUser, ops, threads, channels, logs } = useStore()
+  const { currentUser, staff, ops, threads, channels, logs, loading, error, dismissError, refresh } =
+    useStore()
   const { signOut } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
@@ -288,7 +290,43 @@ export function Layout() {
         </header>
 
         <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8">
-          <Outlet />
+          {/* A failed write has already been applied on screen, so saying so
+              is the only thing standing between the reader and a number they
+              would otherwise trust. */}
+          {error && (
+            <div
+              role="alert"
+              className="mb-4 flex items-start gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3"
+            >
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-rose-500" />
+              <div className="min-w-0 flex-1 text-[13px] text-rose-900">
+                {error}
+              </div>
+              <button
+                onClick={refresh}
+                className="shrink-0 text-[13px] font-medium text-rose-700 underline underline-offset-2"
+              >
+                Reload
+              </button>
+              <button
+                onClick={dismissError}
+                aria-label="Dismiss"
+                className="shrink-0 text-rose-400 hover:text-rose-600"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+          {/* Everyone can read the staff list, so an empty one means the
+              first load has not landed. A reload keeps the page up. */}
+          {loading && staff.length === 0 ? (
+            <div className="flex items-center gap-2.5 py-16 text-sm text-ink-3">
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-line border-t-primary" />
+              Loading the latest from the office…
+            </div>
+          ) : (
+            <Outlet />
+          )}
         </main>
       </div>
     </div>
