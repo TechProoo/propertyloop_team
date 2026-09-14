@@ -241,19 +241,26 @@ export function Ops() {
                       <span className="text-xs text-ink-2">{relative(o.openedAt)}</span>
                     </Td>
                     <Td>
-                      <Select
-                        ariaLabel={`Assign ${o.subject}`}
-                        value={o.assigneeId ?? ''}
-                        onChange={(v) => assignOps(o.id, v || null)}
-                        className="min-w-[9rem] py-1 text-xs"
-                      >
-                        <option value="">Unassigned</option>
-                        {assignableStaff(staff, o.assigneeId).map((s) => (
-                          <option key={s.id} value={s.id}>
-                            {displayName(s)}
-                          </option>
-                        ))}
-                      </Select>
+                      {/* Only a hand-made task has an assignee on record. A KYC
+                          submission or a payout has nowhere to store one, so a
+                          dropdown here would change the screen and nothing else. */}
+                      {o.kind === 'TASK' ? (
+                        <Select
+                          ariaLabel={`Assign ${o.subject}`}
+                          value={o.assigneeId ?? ''}
+                          onChange={(v) => assignOps(o.id, v || null)}
+                          className="min-w-[9rem] py-1 text-xs"
+                        >
+                          <option value="">Unassigned</option>
+                          {assignableStaff(staff, o.assigneeId).map((s) => (
+                            <option key={s.id} value={s.id}>
+                              {displayName(s)}
+                            </option>
+                          ))}
+                        </Select>
+                      ) : (
+                        <span className="text-xs text-ink-3">—</span>
+                      )}
                     </Td>
                     <Td className="text-right whitespace-nowrap">
                       {o.kind === 'TASK' && canHandle && (
@@ -267,7 +274,16 @@ export function Ops() {
                           <Pencil size={13} strokeWidth={2} />
                         </button>
                       )}
-                      {allowed ? (
+                      {o.kind !== 'TASK' ? (
+                        // Resolving a payout or a KYC review is a decision made
+                        // on the record itself, not a tick in this list.
+                        <span
+                          className="text-xs text-ink-3"
+                          title={`Decided on the ${OPS_KIND_SOURCE[o.kind]} record in the admin console`}
+                        >
+                          Admin console
+                        </span>
+                      ) : allowed ? (
                         <Button
                           size="sm"
                           variant={o.resolved ? 'ghost' : 'primary'}

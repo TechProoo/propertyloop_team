@@ -614,7 +614,10 @@ export function StaffForm({
   const [email, setEmail] = useState(existing?.email ?? '')
   const [reportsTo, setReportsTo] = useState(existing?.reportsTo ?? '')
 
-  const valid = editing || letter.trim() !== ''
+  // Adding someone creates their login, which needs a name and an address.
+  const valid =
+    editing ||
+    (letter.trim() !== '' && name.trim() !== '' && /\S+@\S+\.\S+/.test(email.trim()))
 
   function submit() {
     if (!valid) return

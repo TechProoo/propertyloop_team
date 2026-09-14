@@ -167,16 +167,11 @@ export function PropertyForm({
   const [price, setPrice] = useState(
     existing ? String(existing.priceNaira) : '',
   )
-  const [developer, setDeveloper] = useState(existing?.developer ?? '')
   const [dealId, setDealId] = useState(existing?.dealId ?? '')
   const [units, setUnits] = useState(existing ? String(existing.units) : '1')
   const [unitsSold, setUnitsSold] = useState(
     existing ? String(existing.unitsSold) : '0',
   )
-  const [photos, setPhotos] = useState(
-    existing ? String(existing.photoCount) : '0',
-  )
-  const [hasVideo, setHasVideo] = useState(existing?.hasVideo ?? false)
   const [docs, setDocs] = useState<DocumentType[]>(
     existing ? existing.documents.filter((d) => d.present).map((d) => d.type) : [],
   )
@@ -198,17 +193,18 @@ export function PropertyForm({
       chapter,
       type,
       priceNaira: parseNaira(price),
-      developer: developer.trim() || null,
+      // The developer is whoever signed the mandate, not a second free-text copy.
+      developer: linkable.find((d) => d.id === dealId)?.company ?? null,
       dealId: dealId || null,
       units: Math.max(1, parseCount(units, 1)),
-      photoCount: parseCount(photos),
+      // Counted from uploads on the listing, never typed.
+      photoCount: existing?.photoCount ?? 0,
       documentsPresent: docs,
     }
     if (editing) {
       updateProperty(existing.id, {
         ...shared,
         unitsSold: Math.min(parseCount(unitsSold), Math.max(1, parseCount(units, 1))),
-        hasVideo,
       })
     } else {
       addProperty(shared)
@@ -290,11 +286,8 @@ export function PropertyForm({
           </Field>
         </div>
 
-        <div className="grid gap-3.5 sm:grid-cols-2">
-          <Field label="Developer or owner">
-            <TextInput value={developer} onChange={setDeveloper} placeholder="Optional" />
-          </Field>
-          <Field label="From which mandate?">
+        <div className="grid gap-3.5">
+          <Field label="From which mandate? The developer is taken from the deal">
             <Select value={dealId} onChange={setDealId}>
               <option value="">Not from a deal</option>
               {linkable.map((d) => (
@@ -306,7 +299,7 @@ export function PropertyForm({
           </Field>
         </div>
 
-        <div className={`grid gap-3.5 ${editing ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
+        <div className={`grid gap-3.5 ${editing ? 'sm:grid-cols-2' : ''}`}>
           <Field label="Units">
             <NumberInput value={units} onChange={setUnits} min={1} />
           </Field>
@@ -315,9 +308,6 @@ export function PropertyForm({
               <NumberInput value={unitsSold} onChange={setUnitsSold} />
             </Field>
           )}
-          <Field label="Photos uploaded">
-            <NumberInput value={photos} onChange={setPhotos} />
-          </Field>
         </div>
 
         <Field label="Documents on file">
@@ -331,9 +321,11 @@ export function PropertyForm({
         </Field>
 
         {editing && (
-          <Toggle checked={hasVideo} onChange={setHasVideo}>
-            Has a video tour
-          </Toggle>
+          <p className="text-xs text-ink-3">
+            {existing.photoCount} photo{existing.photoCount === 1 ? '' : 's'} ·{' '}
+            {existing.hasVideo ? 'video tour uploaded' : 'no video yet'} — counted from
+            what is actually uploaded to the listing, not typed in here.
+          </p>
         )}
 
         {editing ? (
@@ -400,7 +392,8 @@ export function LeadForm({
   const selectable = properties.filter(
     (p) => p.status === 'ACTIVE' || p.id === existing?.propertyId,
   )
-  const valid = name.trim() !== '' && phone.trim() !== ''
+  // Every lead belongs to a property — the table cannot store one without.
+  const valid = name.trim() !== '' && phone.trim() !== '' && propertyId !== ''
 
   function submit() {
     if (!valid) return
@@ -472,7 +465,9 @@ export function LeadForm({
 
         <Field label="Property of interest">
           <Select value={propertyId} onChange={setPropertyId}>
-            <option value="">Not about a specific listing</option>
+            <option value="" disabled>
+              Choose the property they asked about
+            </option>
             {selectable.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.title}

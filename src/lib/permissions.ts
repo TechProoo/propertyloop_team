@@ -1,17 +1,12 @@
 // Granular staff permissions.
 //
-// WHY THIS EXISTS: the backend today has a single binary check —
-// AdminController calls `checkAdminAccess(user.role)`, which throws unless
-// `role === Role.ADMIN`. Handing the seven staff positions ADMIN accounts
-// would give the Secretary and the Ambassador the same powers as the CEO:
-// suspend any user, change any listing status, approve withdrawals, resolve
-// escrow disputes and read KYC identity documents.
+// The backend once had a single binary check — throw unless role is ADMIN —
+// which would have given the Secretary the same powers as the CEO. It now
+// issues these permissions per person on StaffProfile and checks them on every
+// staff route (StaffPermissionsGuard).
 //
-// This file is the frontend half of the fix. The backend half is a
-// StaffProfile table (userId, staffRole, permissions String[]) and replacing
-// checkAdminAccess with a permission check. Until that lands, this gating is
-// cosmetic — it shapes the UI but does not secure the API. Do not treat a
-// hidden button as an enforced rule.
+// So this file does not decide access. can() reads the list the server issued;
+// hiding a control here is a courtesy, and the API refuses the request anyway.
 
 import type { StaffRole } from './types'
 

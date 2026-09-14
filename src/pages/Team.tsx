@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { Pencil, RotateCcw, ShieldAlert, Users } from 'lucide-react'
+import { KeyRound, Pencil, ShieldCheck, Users } from 'lucide-react'
 import { Plus } from 'lucide-react'
 import { useCurrentUser, useStore } from '../lib/storeContext'
-import { PERMISSION_LABEL, ROLE_PERMISSIONS, SENSITIVE_PERMISSIONS } from '../lib/permissions'
+import { PERMISSION_LABEL, SENSITIVE_PERMISSIONS } from '../lib/permissions'
 import type { Permission } from '../lib/permissions'
 import { can } from '../lib/permissions'
 import { staffSummary } from '../lib/metrics'
@@ -15,27 +15,25 @@ import {
   Badge,
   Button,
   Card,
-  Note,
   PageHeader,
   Progress,
   SectionTitle,
 } from '../components/ui'
 
 /**
- * The org structure, with each position's access spelled out.
+ * The org structure, with each person's access spelled out.
  *
- * Showing permissions per role is not decoration. Today the backend has one
- * binary admin check, so giving these nine people staff logins would hand a
- * Secretary and an Ambassador the same powers as the CEO. Writing the
- * intended access down per position is the first step to enforcing it.
+ * The access shown is what the API has issued to that person — the same list
+ * every staff route checks before it answers — so this screen and the server
+ * cannot disagree about who can do what.
  */
 export function Team() {
   const me = useCurrentUser()
-  const { staff, targets, properties, deals, leads, ops, resetData } = useStore()
+  const { staff, targets, properties, deals, leads, ops, provisioned, dismissProvisioned } =
+    useStore()
   const canManageStaff = can(me, 'MANAGE_STAFF')
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState<Staff | null>(null)
-  const [resetArmed, setResetArmed] = useState(false)
 
   const lagos = staff.filter((s) => s.chapter === 'LAGOS')
   const osun = staff.filter((s) => s.chapter === 'OSUN')
@@ -60,6 +58,33 @@ export function Team() {
 
       {adding && <StaffForm onClose={() => setAdding(false)} />}
       {editing && <StaffForm existing={editing} onClose={() => setEditing(null)} />}
+
+      {provisioned && (
+        <Card accent="gold" className="mb-5">
+          <div className="flex flex-wrap items-start gap-2.5">
+            <KeyRound size={16} className="mt-0.5 shrink-0 text-[color:var(--color-accent)]" />
+            <div className="min-w-0 flex-1">
+              <h2 className="text-sm font-semibold text-ink">
+                {provisioned.name} can now sign in
+              </h2>
+              <p className="mt-1 text-xs leading-relaxed text-ink-2">
+                Email <strong className="font-medium text-ink">{provisioned.email}</strong>,
+                temporary password{' '}
+                <code className="rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[13px] text-ink select-all">
+                  {provisioned.temporaryPassword}
+                </code>
+              </p>
+              <p className="mt-1.5 text-xs leading-relaxed text-ink-3">
+                Send it to them privately, not to a group chat. It is shown this once:
+                the server keeps only a hash, so closing this is final.
+              </p>
+            </div>
+            <Button size="sm" variant="ghost" onClick={dismissProvisioned}>
+              I&apos;ve sent it
+            </Button>
+          </div>
+        </Card>
+      )}
 
       {unfilled.length > 0 && (
         <Card accent="gold" className="mb-5">
@@ -90,7 +115,7 @@ export function Team() {
         ))}
       </div>
 
-      <SectionTitle accent="violet" hint="Both Sodiqs lead the chapter, reporting weekly to the General Manager">
+      <SectionTitle accent="violet" hint="Reports weekly to the General Manager">
         Osun state chapter
       </SectionTitle>
       <div className="pl-stagger mb-6 grid gap-3 lg:grid-cols-2">
@@ -106,78 +131,23 @@ export function Team() {
         ))}
       </div>
 
-      <Card accent="rose" className="border-rose/30">
+      <Card accent="blue">
         <div className="flex items-start gap-2.5">
-          <ShieldAlert
-            size={16}
-            className="mt-0.5 shrink-0 text-[color:var(--color-danger)]"
-          />
+          <ShieldCheck size={16} className="mt-0.5 shrink-0 text-primary" />
           <div>
             <h2 className="text-sm font-semibold text-ink">
-              These permissions are not enforced yet
+              Access is enforced by the server
             </h2>
             <p className="mt-1.5 text-xs leading-relaxed text-ink-2">
-              The backend&apos;s <code>Role</code> enum is BUYER, AGENT, VENDOR
-              and ADMIN — there is no staff concept — and every admin endpoint
-              runs the same check: throw unless the role is exactly ADMIN.
-              Creating staff accounts today would mean nine people with
-              identical, total access: suspend any user, change any
-              listing&apos;s status, approve withdrawals, resolve escrow
-              disputes, read KYC documents. The access shown on each card is
-              the intended shape, and the reason a StaffProfile table with
-              per-permission grants should land before the first login is
-              handed out.
+              Each card shows what that person actually holds, issued to them by the
+              API — not what their position is meant to get. A button hidden here is
+              refused there too: every staff route checks the same list before it
+              answers. Items in red can move money, read identity documents or change
+              what the public site shows.
             </p>
           </div>
         </div>
       </Card>
-
-      {canManageStaff && (
-        <Card className="mt-4">
-          <h2 className="flex items-center gap-1.5 text-xs font-semibold tracking-wider text-ink-2 uppercase">
-            <RotateCcw size={13} strokeWidth={2} />
-            Sample data
-          </h2>
-          <p className="mt-2 text-xs leading-relaxed text-ink-2">
-            Everything in this portal is invented sample data held in your
-            browser. Resetting puts it back exactly as it started — useful
-            before showing the team, and the only way to undo a delete.
-          </p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {resetArmed ? (
-              <>
-                <Button
-                  size="sm"
-                  variant="danger"
-                  onClick={() => {
-                    resetData()
-                    setResetArmed(false)
-                  }}
-                >
-                  Yes, discard my changes
-                </Button>
-                <Button size="sm" variant="ghost" onClick={() => setResetArmed(false)}>
-                  Cancel
-                </Button>
-              </>
-            ) : (
-              <Button size="sm" onClick={() => setResetArmed(true)}>
-                Reset sample data
-              </Button>
-            )}
-          </div>
-        </Card>
-      )}
-
-      <div className="mt-4">
-        <Note>
-          Sodiq (1st) carries both a Lagos listing role and Osun chapter
-          duties, so he appears under Lagos with the second chapter noted. If
-          the split is meant to be even, it is worth saying which is primary —
-          his Lagos target and his Osun target are currently counted as though
-          he were in one place.
-        </Note>
-      </div>
     </>
   )
 }
@@ -197,7 +167,8 @@ function PersonCard({
 }) {
   const { staffById } = useStore()
   const manager = staffById(person.reportsTo)
-  const permissions = ROLE_PERMISSIONS[person.role]
+  // What the API issued to this person, not their position's defaults.
+  const permissions = person.permissions
   const sensitive = permissions.filter((p) => SENSITIVE_PERMISSIONS.includes(p))
 
   return (

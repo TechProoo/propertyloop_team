@@ -64,6 +64,14 @@ export interface StoreValue extends PersistedData {
   dismissError: () => void
   refresh: () => void
 
+  /**
+   * The person just added from the Team screen, with their temporary
+   * password. Memory only, and only until dismissed: the server keeps nothing
+   * readable, so this is the one chance to hand it over.
+   */
+  provisioned: { name: string; email: string; temporaryPassword: string } | null
+  dismissProvisioned: () => void
+
   staffById: (id: string | null) => Staff | null
   propertyById: (id: string | null) => Property | null
   dealById: (id: string | null) => Deal | null

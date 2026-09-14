@@ -89,6 +89,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [data, setData] = useState<PersistedData>(EMPTY)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [provisioned, setProvisioned] = useState<{
+    name: string
+    email: string
+    temporaryPassword: string
+  } | null>(null)
   const { account } = useAuth()
 
   // Not state: changing it must not re-render, and every mutator needs the
@@ -930,21 +935,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         ),
       }))
       sync(
-        () => staffApi.create(input),
-        (saved) => {
+        () => staffApi.provision(input),
+        ({ staff: saved, temporaryPassword }) => {
           linkId(id, saved.id)
-          // Swapped in full here rather than aliased: a staff record carries
-          // the permissions every screen reads, and the placeholder above has
-          // none of them.
-          setData((prev) => ({
-            ...prev,
-            staff: prev.staff.map((s) => (s.id === id ? saved : s)),
-          }))
+          setProvisioned({
+            name: saved.name ?? `Staff ${saved.letter}`,
+            email: saved.email ?? '',
+            temporaryPassword,
+          })
+          // Reload rather than patch: the new person needs a place in the
+          // user-id index before anyone can message them, and their real
+          // permissions replace the empty placeholder above.
+          void load()
         },
       )
       return id
     },
-    [sync, linkId],
+    [sync, linkId, load],
   )
 
   const updateStaff = useCallback(
@@ -1189,7 +1196,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         ),
       }))
       sync(() =>
-        threadsApi.postMessage(indexRef.current, remoteId(threadId), text.trim()),
+        threadsApi.postMessage(remoteId(threadId), text.trim()),
       )
     },
     [currentUserId, sync, remoteId],
@@ -1388,7 +1395,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         ),
       }))
       sync(() =>
-        channelsApi.send(indexRef.current, remoteId(channelId), text.trim()),
+        channelsApi.send(remoteId(channelId), text.trim()),
       )
     },
     [currentUserId, sync, remoteId],
@@ -1423,6 +1430,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     error,
     dismissError: () => setError(null),
     refresh: resetData,
+    provisioned,
+    dismissProvisioned: () => setProvisioned(null),
     staffById,
     addProperty,
     addLead,

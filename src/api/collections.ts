@@ -101,23 +101,41 @@ export const staffApi = {
     const { data } = await api.get<StaffDto[]>('/staff')
     return { staff: data.map(toStaff), index: staffIndex(data) }
   },
-  async create(input: NewStaffInput): Promise<Staff> {
-    const { data } = await api.post<StaffDto>('/staff', {
+  /**
+   * Account and position together. The temporary password comes back exactly
+   * once — the server keeps only its hash, so this is the only time it exists.
+   */
+  async provision(
+    input: NewStaffInput,
+  ): Promise<{ staff: Staff; temporaryPassword: string }> {
+    const { data } = await api.post<{
+      staff: StaffDto
+      temporaryPassword: string
+    }>('/staff/provision', {
+      email: input.email,
+      name: input.name,
       letter: input.letter,
       staffRole: input.role,
       chapter: input.chapter,
-      secondaryChapter: input.secondaryChapter,
+      secondaryChapter: input.secondaryChapter ?? null,
       reportsToId: input.reportsTo,
     })
-    return toStaff(data)
+    return {
+      staff: toStaff(data.staff),
+      temporaryPassword: data.temporaryPassword,
+    }
   },
   async update(id: string, patch: StaffPatch): Promise<Staff> {
     const { data } = await api.patch<StaffDto>(`/staff/${id}`, {
       ...(patch.role !== undefined && { staffRole: patch.role }),
       ...(patch.chapter !== undefined && { chapter: patch.chapter }),
-      ...(patch.secondaryChapter !== undefined && {
-        secondaryChapter: patch.secondaryChapter,
+      // Present-but-undefined means the Osun box was un-ticked: clear it.
+      ...('secondaryChapter' in patch && {
+        secondaryChapter: patch.secondaryChapter ?? null,
       }),
+      // Name and email live on the account; the API writes them there.
+      ...(patch.name && { name: patch.name }),
+      ...(patch.email && { email: patch.email }),
       ...(patch.reportsTo !== undefined && { reportsToId: patch.reportsTo }),
     })
     return toStaff(data)
@@ -190,9 +208,10 @@ export const propertiesApi = {
     return toProperty(data)
   },
   async update(id: string, patch: PropertyPatch): Promise<Property> {
-    // Only these are editable here. Documents arrive by somebody handing a
-    // file over and photos by uploading one, and `developer` is the mandate's
-    // company name — changing it would mean pointing at a different deal.
+    // Photo and video counts are read from what is uploaded, and `developer`
+    // is the linked mandate's company — neither is typed in, so neither is
+    // sent. Documents are: which of the four are on file is a fact somebody
+    // records by hand.
     const { data } = await api.patch<ListingDto>(`/staff/listings/${id}`, {
       ...(patch.title !== undefined && { title: patch.title }),
       ...(patch.location !== undefined && { location: patch.location }),
@@ -202,6 +221,9 @@ export const propertiesApi = {
       ...(patch.units !== undefined && { units: patch.units }),
       ...(patch.unitsSold !== undefined && { unitsSold: patch.unitsSold }),
       ...(patch.dealId !== undefined && { dealId: patch.dealId }),
+      ...(patch.documentsPresent !== undefined && {
+        documentsPresent: patch.documentsPresent,
+      }),
     })
     return toProperty(data)
   },
@@ -330,7 +352,8 @@ export const productionApi = {
       ...(scheduledInDays !== undefined && {
         scheduledFor: inDays(scheduledInDays),
       }),
-      ...(publishNow && { publishedAt: new Date().toISOString() }),
+      // The server stamps the time; it only accepts the intent.
+      ...(publishNow && { publishNow: true }),
     })
     return toContent(data)
   },
@@ -457,15 +480,13 @@ export const threadsApi = {
     })
     return toThread(data, index)
   },
-  async postMessage(
-    index: StaffIndex,
-    threadId: string,
-    text: string,
-  ): Promise<Thread> {
-    const { data } = await api.post<ThreadDto>(`/threads/${threadId}/messages`, {
-      text,
-    })
-    return toThread(data, index)
+  /**
+   * Returns nothing on purpose. The API answers with the single new message,
+   * not the thread — mapping that as a thread threw, which reported every
+   * sent message as a failure even though it had saved.
+   */
+  async postMessage(threadId: string, text: string): Promise<void> {
+    await api.post(`/threads/${threadId}/messages`, { text })
   },
   async setResolved(
     index: StaffIndex,
@@ -498,16 +519,9 @@ export const channelsApi = {
     const { data } = await api.post<ThreadDto>(`/threads/direct/${userId}`, {})
     return toChannel(data, index)
   },
-  async send(
-    index: StaffIndex,
-    channelId: string,
-    text: string,
-  ): Promise<Channel> {
-    const { data } = await api.post<ThreadDto>(
-      `/threads/${channelId}/messages`,
-      { text },
-    )
-    return toChannel(data, index)
+  /** Returns nothing, for the same reason as threadsApi.postMessage. */
+  async send(channelId: string, text: string): Promise<void> {
+    await api.post(`/threads/${channelId}/messages`, { text })
   },
   markRead: (channelId: string) =>
     api.post(`/threads/${channelId}/read`, {}).then(() => undefined),
@@ -522,32 +536,21 @@ export const partnersApi = {
     })
     return data.items.map(toPartner)
   },
-  async setStatus(id: string, status: PartnerStatus): Promise<AgentPartner> {
-    const { data } = await api.patch<PartnerDto>(
-      `/staff/partners/${id}/status`,
-      { status },
-    )
-    return toPartner(data)
+  /*
+   * The write endpoints answer with the bare AgentPartner row — no name, no
+   * payout gaps — which the list-shaped mapper cannot read. The screen already
+   * holds the change, so nothing is mapped back.
+   */
+  async setStatus(id: string, status: PartnerStatus): Promise<void> {
+    await api.patch(`/staff/partners/${id}/status`, { status })
   },
-  async assign(id: string, staffId: string | null): Promise<AgentPartner> {
-    const { data } = await api.patch<PartnerDto>(
-      `/staff/partners/${id}/owner`,
-      { staffId },
-    )
-    return toPartner(data)
+  async assign(id: string, staffId: string | null): Promise<void> {
+    await api.patch(`/staff/partners/${id}/owner`, { staffId })
   },
-  async logContact(id: string): Promise<AgentPartner> {
-    const { data } = await api.post<PartnerDto>(
-      `/staff/partners/${id}/contact`,
-      {},
-    )
-    return toPartner(data)
+  async logContact(id: string): Promise<void> {
+    await api.post(`/staff/partners/${id}/contact`, {})
   },
-  async setNotes(id: string, notes: string): Promise<AgentPartner> {
-    const { data } = await api.patch<PartnerDto>(
-      `/staff/partners/${id}/notes`,
-      { notes },
-    )
-    return toPartner(data)
+  async setNotes(id: string, notes: string): Promise<void> {
+    await api.patch(`/staff/partners/${id}/notes`, { notes })
   },
 }

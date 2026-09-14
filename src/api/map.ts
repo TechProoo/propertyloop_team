@@ -189,7 +189,8 @@ export function toOpsItem(dto: OpsDto): OpsItem {
       ? (dto.kind as OpsKind)
       : 'TASK',
     subject: dto.subject,
-    amountNaira: dto.amountNaira,
+    // A hand-made task comes back from its own endpoint with no money field.
+    amountNaira: dto.amountNaira ?? null,
     openedAt: dto.openedAt,
     assigneeId: dto.assigneeId,
     resolved: dto.resolved,
