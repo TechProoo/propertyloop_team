@@ -80,7 +80,8 @@ const NAV: NavItem[] = [
     label: 'Agent partners',
     icon: Contact,
     accent: 'teal',
-    permissions: ['MANAGE_LEADS'],
+    // The partner directory needs its own grant; leads access does not load it.
+    permissions: ['MANAGE_PARTNERS'],
   },
   { to: '/threads', label: 'Threads', icon: MessageSquare, accent: 'teal', permissions: [] },
   { to: '/messages', label: 'Messages', icon: Send, accent: 'teal', permissions: [] },

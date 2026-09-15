@@ -119,7 +119,7 @@ function Router() {
         <Route
           path="partners"
           element={
-            <RequirePermission permissions={['MANAGE_LEADS']}>
+            <RequirePermission permissions={['MANAGE_PARTNERS']}>
               <Partners />
             </RequirePermission>
           }
