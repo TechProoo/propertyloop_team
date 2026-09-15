@@ -377,6 +377,11 @@ export const SHOOT_STAGE_LABEL: Record<ShootStage, string> = {
 export interface Shoot {
   id: string
   propertyId: string | null
+  /**
+   * The property's title, as the API sends it with the shoot. Content staff
+   * cannot load the property list, so this is how their cards name it.
+   */
+  propertyTitle: string | null
   title: string
   location: string
   stage: ShootStage

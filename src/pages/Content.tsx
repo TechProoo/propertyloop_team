@@ -193,7 +193,7 @@ export function Content() {
               shoot={s}
               editable={editable}
               onEdit={() => setEditShoot(s)}
-              propertyTitle={propertyById(s.propertyId)?.title ?? null}
+              propertyTitle={propertyById(s.propertyId)?.title ?? s.propertyTitle}
               presenter={staffById(s.presenterId)}
               secretary={staffById(s.secretaryId)}
               onStage={(next) => setShootStage(s.id, next)}

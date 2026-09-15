@@ -137,6 +137,8 @@ export interface ShootDto {
   title: string
   location: string
   listingId: string | null
+  /** Present on the list; absent on write responses. */
+  listing?: { id: string; title: string; location: string } | null
   stage: ShootStage
   scheduledFor: Iso | null
   prepCompleteAt: Iso | null

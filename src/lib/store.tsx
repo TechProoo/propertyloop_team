@@ -688,6 +688,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           {
             id,
             propertyId: input.propertyId,
+            propertyTitle: input.propertyTitle ?? null,
             title: input.title,
             location: input.location,
             // Nothing is booked until a date exists, which is what the

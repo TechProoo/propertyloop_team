@@ -154,6 +154,7 @@ export function toShoot(dto: ShootDto): Shoot {
   return {
     id: dto.id,
     propertyId: dto.listingId,
+    propertyTitle: dto.listing?.title ?? null,
     title: dto.title,
     location: dto.location,
     stage: dto.stage,

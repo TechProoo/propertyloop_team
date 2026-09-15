@@ -4,9 +4,10 @@
 // create and edit, `existing` decides which, and anything destructive states
 // its consequences first.
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { AlertTriangle } from 'lucide-react'
 import { useStore } from '../lib/storeContext'
+import { productionApi } from '../api/collections'
 import {
   CONTENT_CHANNEL_LABEL,
   CONTENT_KIND_LABEL,
@@ -88,7 +89,30 @@ export function ShootForm({
   existing?: Shoot
   onClose: () => void
 }) {
-  const { addShoot, updateShoot, deleteShoot, properties, staff, threads } = useStore()
+  const { addShoot, updateShoot, deleteShoot, staff, threads } = useStore()
+
+  // From the production route, not the portal's property list: content staff
+  // cannot load that list, and their picker would otherwise be empty.
+  const [options, setOptions] = useState<{ id: string; title: string; location: string }[]>(
+    [],
+  )
+  const [optionsState, setOptionsState] = useState<'loading' | 'ready' | 'failed'>('loading')
+  useEffect(() => {
+    let alive = true
+    productionApi
+      .listPropertyOptions()
+      .then((list) => {
+        if (!alive) return
+        setOptions(list)
+        setOptionsState('ready')
+      })
+      .catch(() => {
+        if (alive) setOptionsState('failed')
+      })
+    return () => {
+      alive = false
+    }
+  }, [])
   const editing = existing !== undefined
 
   const [title, setTitle] = useState(existing?.title ?? '')
@@ -110,10 +134,15 @@ export function ShootForm({
   // Picking a property fills the location, since a shoot happens at the address.
   function pickProperty(id: string) {
     setPropertyId(id)
-    const p = properties.find((x) => x.id === id)
+    const p = options.find((x) => x.id === id)
     if (p && location.trim() === '') setLocation(p.location)
     if (p && title.trim() === '') setTitle(p.title)
   }
+
+  // The title the card should show for whatever is picked now.
+  const chosenTitle = propertyId
+    ? (options.find((o) => o.id === propertyId)?.title ?? existing?.propertyTitle ?? null)
+    : null
 
   function submit() {
     if (!valid) return
@@ -122,6 +151,7 @@ export function ShootForm({
         title: title.trim(),
         location: location.trim(),
         propertyId: propertyId || null,
+        propertyTitle: chosenTitle,
         presenterId,
         secretaryId,
         reshoot,
@@ -136,6 +166,7 @@ export function ShootForm({
         title: title.trim(),
         location: location.trim(),
         propertyId: propertyId || null,
+        propertyTitle: chosenTitle,
         presenterId,
         secretaryId,
         scheduledInDays: booked ? parseNumber(inDays, 3) : null,
@@ -174,13 +205,26 @@ export function ShootForm({
       <div className="grid gap-3.5">
         <Field label="Property">
           <Select value={propertyId} onChange={pickProperty}>
-            <option value="">Not about a specific listing</option>
-            {properties.map((p) => (
+            <option value="">
+              {optionsState === 'loading' ? 'Loading properties…' : 'Not about a specific listing'}
+            </option>
+            {/* A shoot already linked to a property that is no longer offered
+                (archived, say) keeps showing it rather than silently reading
+                as "not about a listing". */}
+            {propertyId && !options.some((o) => o.id === propertyId) && (
+              <option value={propertyId}>{existing?.propertyTitle ?? 'Current property'}</option>
+            )}
+            {options.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.title}
               </option>
             ))}
           </Select>
+          {optionsState === 'failed' && (
+            <p className="mt-1 text-xs text-rose-600">
+              Properties could not be loaded. You can still save the shoot without one.
+            </p>
+          )}
         </Field>
 
         <Field label="Title">

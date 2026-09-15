@@ -290,6 +290,8 @@ export interface NewShootInput {
   title: string
   location: string
   propertyId: string | null
+  /** Shown on the card straight away, before the list reloads. */
+  propertyTitle?: string | null
   presenterId: string
   secretaryId: string
   /** Days from today, or null when nothing is booked yet. */
@@ -302,6 +304,7 @@ export type ShootPatch = Partial<
     | 'title'
     | 'location'
     | 'propertyId'
+    | 'propertyTitle'
     | 'presenterId'
     | 'secretaryId'
     | 'reshoot'

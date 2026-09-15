@@ -371,6 +371,16 @@ export const productionApi = {
     const { data } = await api.get<ShootDto[]>('/production/shoots')
     return data.map(toShoot)
   },
+  /**
+   * PropertyLoop stock a shoot can be for. Its own route because content
+   * staff cannot read the full property list.
+   */
+  async listPropertyOptions(): Promise<{ id: string; title: string; location: string }[]> {
+    const { data } = await api.get<{ id: string; title: string; location: string }[]>(
+      '/production/properties',
+    )
+    return data
+  },
   async createShoot(input: NewShootInput): Promise<Shoot> {
     const { data } = await api.post<ShootDto>('/production/shoots', {
       title: input.title,
@@ -383,9 +393,16 @@ export const productionApi = {
     return toShoot(data)
   },
   async updateShoot(id: string, patch: ShootPatch): Promise<Shoot> {
-    const { scheduledInDays, propertyId, ...rest } = patch
+    const { scheduledInDays, propertyId } = patch
+    // Picked field by field: propertyTitle is display-only, and the API
+    // rejects any field it does not know.
     const { data } = await api.patch<ShootDto>(`/production/shoots/${id}`, {
-      ...rest,
+      ...(patch.title !== undefined && { title: patch.title }),
+      ...(patch.location !== undefined && { location: patch.location }),
+      ...(patch.presenterId !== undefined && { presenterId: patch.presenterId }),
+      ...(patch.secretaryId !== undefined && { secretaryId: patch.secretaryId }),
+      ...(patch.reshoot !== undefined && { reshoot: patch.reshoot }),
+      ...(patch.engagementRate !== undefined && { engagementRate: patch.engagementRate }),
       ...(propertyId !== undefined && { listingId: propertyId }),
       ...(scheduledInDays !== undefined && {
         scheduledFor: inDays(scheduledInDays),
