@@ -7,6 +7,7 @@ import { useStore } from './lib/storeContext'
 import { canAny } from './lib/permissions'
 import type { Permission } from './lib/permissions'
 import { Layout } from './components/Layout'
+import { FullScreenLoader, NetworkBar, OfflineNotice } from './components/Loader'
 import { Login } from './pages/Login'
 import { Dashboard } from './pages/Dashboard'
 import { Deals } from './pages/Deals'
@@ -32,14 +33,9 @@ function RequireAuth({ children }: { children: ReactElement }) {
 }
 
 function Booting() {
-  return (
-    <div className="flex min-h-full items-center justify-center">
-      <div className="flex items-center gap-2.5 text-sm text-ink-3">
-        <span className="h-4 w-4 animate-spin rounded-full border-2 border-line border-t-primary" />
-        Signing you in…
-      </div>
-    </div>
-  )
+  // On a cold start or a slow line this can take a while: the refresh call
+  // waits on the API waking up.
+  return <FullScreenLoader label="Signing you in…" />
 }
 
 /**
@@ -142,6 +138,8 @@ export default function App() {
   return (
     <AuthProvider>
       <StoreProvider>
+        <NetworkBar />
+        <OfflineNotice />
         <Router />
       </StoreProvider>
     </AuthProvider>

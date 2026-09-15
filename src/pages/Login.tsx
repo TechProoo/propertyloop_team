@@ -166,6 +166,12 @@ export function Login() {
               </>
             )}
           </button>
+          {busy && (
+            <p className="pl-delayed mt-3 text-center text-xs leading-relaxed text-ink-3">
+              Still working — your connection seems slow, or the server is waking
+              up. This can take up to a minute. Please wait.
+            </p>
+          )}
         </form>
 
         <div className="mt-4">

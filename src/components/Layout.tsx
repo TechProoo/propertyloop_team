@@ -29,6 +29,7 @@ import { useDocumentTitle } from '../lib/title'
 import { STAFF_ROLE_SHORT } from '../lib/types'
 import { Avatar } from './ui'
 import { ChangePassword } from './ChangePassword'
+import { PageLoader } from './Loader'
 import { PhoneAppModal } from './PhoneApp'
 import { disablePush, syncPush } from '../lib/push'
 import type { Accent } from '../lib/accent'
@@ -364,10 +365,7 @@ export function Layout() {
           {/* Everyone can read the staff list, so an empty one means the
               first load has not landed. A reload keeps the page up. */}
           {loading && staff.length === 0 ? (
-            <div className="flex items-center gap-2.5 py-16 text-sm text-ink-3">
-              <span className="h-4 w-4 animate-spin rounded-full border-2 border-line border-t-primary" />
-              Loading the latest from the office…
-            </div>
+            <PageLoader label="Loading the latest from the office…" />
           ) : (
             <Outlet />
           )}

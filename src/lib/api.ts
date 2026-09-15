@@ -7,6 +7,7 @@
 
 import axios from 'axios'
 import type { AxiosError, InternalAxiosRequestConfig } from 'axios'
+import { trackActivity } from './network'
 
 export const API_BASE =
   import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api'
@@ -20,6 +21,10 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
   withCredentials: true,
 })
+
+// First, so the loading bar releases a failed request before the refresh
+// logic below retries it.
+trackActivity(api)
 
 let accessToken: string | null = null
 
