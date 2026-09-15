@@ -33,7 +33,12 @@ export function Login() {
     setError(null)
     setBusy(true)
     try {
-      await signIn(email, password)
+      // Staff passwords are generated from letters, digits, "-" and "#" only,
+      // so nothing a real one contains is touched here. What this undoes is a
+      // phone keyboard's doing: a space added by an accepted suggestion, or a
+      // hyphen swapped for a dash — invisible on screen, and enough to fail.
+      const typed = password.trim().replace(/[‐-―−]/g, '-')
+      await signIn(email, typed)
       // No navigate() — the router swaps to the portal as soon as the auth
       // context holds an account.
     } catch (err) {
@@ -85,6 +90,11 @@ export function Login() {
               <input
                 type="email"
                 autoComplete="username"
+                // Phones otherwise capitalise, "correct" or suggest into the
+                // address, and the sign-in fails for no visible reason.
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
                 autoFocus
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -101,6 +111,12 @@ export function Login() {
                 <input
                   type={showPassword ? 'text' : 'password'}
                   autoComplete="current-password"
+                  // With the password shown it becomes a text box, and iOS
+                  // will capitalise or autocorrect it — a password that looks
+                  // right on screen and is rejected.
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
