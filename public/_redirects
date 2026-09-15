@@ -1,1 +1,7 @@
+# Sign-in, token refresh and sign-out are forwarded to the API through this
+# site, so the refresh cookie belongs to team.propertyloop.ng and Safari keeps
+# it across reloads (see AUTH_BASE in src/lib/api.ts). Must stay above the
+# SPA fallback, which would otherwise answer with index.html.
+/api/auth/*   https://propertyloopbackend-production.up.railway.app/api/auth/:splat   200
+
 /*    /index.html   200

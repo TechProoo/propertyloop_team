@@ -12,6 +12,21 @@ import { trackActivity } from './network'
 export const API_BASE =
   import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api'
 
+/**
+ * Where the calls that carry the refresh cookie go.
+ *
+ * In production this is the portal's own origin (/api), which Netlify
+ * forwards to the API (public/_redirects). The cookie is then first-party to
+ * team.propertyloop.ng and Safari keeps it. Sent straight to the API's own
+ * domain it is a third-party cookie: Safari — and the home-screen app, which
+ * is Safari — drops it, and every reload signed people out.
+ *
+ * Only these three go this way. Everything else, uploads included, still
+ * goes direct, so large files never pass through the proxy.
+ */
+export const AUTH_BASE: string = import.meta.env.VITE_AUTH_URL ?? API_BASE
+const COOKIE_AUTH_CALL = /^\/auth\/(login|refresh|logout)(?:[/?]|$)/
+
 const api = axios.create({
   baseURL: API_BASE,
   // Render and Railway cold starts can take the better part of a minute on
@@ -41,6 +56,9 @@ export const tokens = {
 }
 
 api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+  if (config.url && COOKIE_AUTH_CALL.test(config.url)) {
+    config.baseURL = AUTH_BASE
+  }
   if (accessToken) {
     config.headers.Authorization = `Bearer ${accessToken}`
   }
@@ -62,7 +80,7 @@ async function refreshAccessToken(): Promise<string | null> {
   if (!refreshing) {
     refreshing = axios
       .post<{ accessToken: string }>(
-        `${API_BASE}/auth/refresh`,
+        `${AUTH_BASE}/auth/refresh`,
         {},
         { withCredentials: true },
       )

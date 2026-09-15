@@ -8,6 +8,7 @@ import { canAny } from './lib/permissions'
 import type { Permission } from './lib/permissions'
 import { Layout } from './components/Layout'
 import { FullScreenLoader, NetworkBar, OfflineNotice } from './components/Loader'
+import { PullToRefresh } from './components/PullToRefresh'
 import { Login } from './pages/Login'
 import { Dashboard } from './pages/Dashboard'
 import { Deals } from './pages/Deals'
@@ -140,6 +141,7 @@ export default function App() {
       <StoreProvider>
         <NetworkBar />
         <OfflineNotice />
+        <PullToRefresh />
         <Router />
       </StoreProvider>
     </AuthProvider>

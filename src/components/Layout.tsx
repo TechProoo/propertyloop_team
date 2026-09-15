@@ -10,6 +10,7 @@ import {
   Contact,
   KeyRound,
   LogOut,
+  RotateCw,
   Smartphone,
   Menu,
   MessageSquare,
@@ -116,6 +117,7 @@ export function Layout() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [changingPassword, setChangingPassword] = useState(false)
   const [phoneOpen, setPhoneOpen] = useState(false)
+  const [reloading, setReloading] = useState(false)
 
   // Re-send this device's notification subscription once signed in, so a
   // shared phone notifies whoever is using it now.
@@ -327,11 +329,28 @@ export function Layout() {
             <Menu size={20} />
           </button>
           <Brand compact />
-          {unreadMessages > 0 && (
-            <span className="ml-auto rounded-full bg-gold px-2 py-0.5 text-[10px] font-bold text-white">
-              {unreadMessages}
-            </span>
-          )}
+          <div className="ml-auto flex items-center gap-2">
+            {unreadMessages > 0 && (
+              <span className="rounded-full bg-gold px-2 py-0.5 text-[10px] font-bold text-white">
+                {unreadMessages}
+              </span>
+            )}
+            {/* The home-screen app has no browser reload button, so the
+                portal carries its own. Pulling down works there too. */}
+            <button
+              type="button"
+              aria-label="Refresh"
+              title="Refresh"
+              disabled={reloading}
+              onClick={() => {
+                setReloading(true)
+                window.location.reload()
+              }}
+              className="rounded-lg p-1.5 text-ink-2 transition-colors hover:bg-surface-2 disabled:opacity-60"
+            >
+              <RotateCw size={18} className={reloading ? 'animate-spin' : ''} />
+            </button>
+          </div>
         </header>
 
         <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8">
