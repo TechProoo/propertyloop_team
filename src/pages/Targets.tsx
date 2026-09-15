@@ -41,6 +41,9 @@ export function Targets() {
 
   const seesAll = can(me, 'VIEW_ALL_TARGETS')
   const canEdit = can(me, 'MANAGE_TARGETS')
+  // The MD and GM set anyone's targets; any other manager only their own
+  // reports' — the API refuses the rest (TargetsService).
+  const managesAll = me.role === 'MD_CEO' || me.role === 'GM'
   const seesRevenue = can(me, 'VIEW_REVENUE')
   const [editing, setEditing] = useState<Target | null>(null)
   const [addingFor, setAddingFor] = useState<string | null>(null)
@@ -109,7 +112,7 @@ export function Targets() {
             key={person.id}
             person={person}
             targets={targets.filter((t) => t.staffId === person.id)}
-            canEdit={canEdit}
+            canEdit={canEdit && (managesAll || person.reportsTo === me.id)}
             seesRevenue={seesRevenue}
             onEdit={setEditing}
             onAdd={() => setAddingFor(person.id)}

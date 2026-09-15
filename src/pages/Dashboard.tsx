@@ -47,6 +47,7 @@ import {
   SectionTitle,
   Stat,
 } from '../components/ui'
+import { OperationsView } from '../components/OperationsView'
 
 export function Dashboard() {
   const me = useCurrentUser()
@@ -56,13 +57,19 @@ export function Dashboard() {
 
   const snap = companySnapshot({ properties, deals, leads, shoots, content, ops })
   const seesEverything = can(me, 'VIEW_ALL_TARGETS')
+  // The Operations Manager can read every scorecard, but the owner's view is
+  // built on deals and revenue they do not load — so they get the view of
+  // the function they run instead.
+  const runsOps = me.role === 'OPERATIONS_MANAGER'
   const myScore = staffScore(targets, me.id)
 
   return (
     <>
       <Hero />
 
-      {seesEverything ? (
+      {runsOps ? (
+        <OperationsView />
+      ) : seesEverything ? (
         <ManagementView snapshot={snap} />
       ) : (
         <PersonalView score={myScore} />
@@ -76,7 +83,7 @@ export function Dashboard() {
         </div>
       </div>
 
-      {seesEverything && (
+      {seesEverything && !runsOps && (
         <>
           <div className="mt-6">
             <SectionTitle accent="gold" hint="Average progress across each person's monthly targets">

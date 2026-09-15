@@ -12,7 +12,8 @@ import type { Permission } from './permissions'
 
 /* ─── Staff ──────────────────────────────────────────────────────────── */
 
-// The seven positions in the September 2026 structure. `Role` in the backend
+// The positions in the September 2026 structure, plus the Operations
+// Manager added after it. `Role` in the backend
 // is BUYER | AGENT | VENDOR | ADMIN and has no staff concept — this lives
 // alongside it (see lib/permissions.ts).
 export const StaffRole = {
@@ -21,6 +22,7 @@ export const StaffRole = {
   PROPERTY_LISTING: 'PROPERTY_LISTING',
   MARKETING: 'MARKETING',
   OPERATIONS: 'OPERATIONS',
+  OPERATIONS_MANAGER: 'OPERATIONS_MANAGER',
   AMBASSADOR: 'AMBASSADOR',
   SECRETARY: 'SECRETARY',
 } as const
@@ -32,6 +34,7 @@ export const STAFF_ROLE_LABEL: Record<StaffRole, string> = {
   PROPERTY_LISTING: 'Property & Listing Manager',
   MARKETING: 'Marketing & Content Executive',
   OPERATIONS: 'Operations & Customer Relationship',
+  OPERATIONS_MANAGER: 'Operations Manager',
   AMBASSADOR: 'Video Presenter — Ambassador',
   SECRETARY: 'Secretary',
 }
@@ -42,6 +45,7 @@ export const STAFF_ROLE_SHORT: Record<StaffRole, string> = {
   PROPERTY_LISTING: 'Property & Listing',
   MARKETING: 'Marketing',
   OPERATIONS: 'Operations & CRM',
+  OPERATIONS_MANAGER: 'Operations Manager',
   AMBASSADOR: 'Ambassador',
   SECRETARY: 'Secretary',
 }

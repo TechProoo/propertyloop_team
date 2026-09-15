@@ -130,6 +130,22 @@ export const ROLE_PERMISSIONS: Record<StaffRole, Permission[]> = {
     'MANAGE_PARTNERS',
   ],
 
+  // Jamiu. Everything Operations & CRM has, plus a manager's oversight:
+  // every daily log and scorecard, targets for their own reports, and
+  // escrow disputes. No payouts, commissions or staff administration.
+  OPERATIONS_MANAGER: [
+    'MANAGE_LEADS',
+    'QUALIFY_LEAD',
+    'HANDLE_OPS',
+    'REVIEW_KYC',
+    'MANAGE_PROPERTIES',
+    'MANAGE_PARTNERS',
+    'VIEW_ALL_LOGS',
+    'VIEW_ALL_TARGETS',
+    'MANAGE_TARGETS',
+    'RESOLVE_DISPUTE',
+  ],
+
   // On camera. Needs to see what is being shot and nothing else.
   AMBASSADOR: ['MANAGE_CONTENT'],
 
