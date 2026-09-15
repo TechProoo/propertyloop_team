@@ -39,7 +39,7 @@ import {
   TextInput,
 } from '../components/ui'
 import type { BadgeTone } from '../components/ui'
-import { PropertyForm } from '../components/forms'
+import { PropertyForm } from '../components/PropertyForm'
 import { DiscussButton } from '../components/DiscussButton'
 
 const STATUS_TONE: Record<ListingStatus, BadgeTone> = {

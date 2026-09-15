@@ -171,19 +171,37 @@ export interface StoreValue extends PersistedData {
 }
 
 export interface NewPropertyInput {
-  title: string
-  location: string
-  chapter: Chapter
+  /* The public listing — the same inputs the website's agent form takes. */
   type: ListingType
+  propertyType: string
+  title: string
+  address: string
+  location: string
+  beds: number
+  baths: number
+  sqft: string
+  yearBuilt: string
   priceNaira: number
+  description: string
+  features: string[]
+  virtualTourUrl: string
+  /** YouTube / Vimeo links. Uploaded files go in `videos`. */
+  videoLinks: string[]
+
+  /* What only the company records. */
+  chapter: Chapter
   developer: string | null
   dealId: string | null
   units: number
   photoCount: number
-  /** Which of the four documents the owner has actually handed over. */
-  documentsPresent: DocumentType[]
-  /** Uploaded straight after the property is filed, first as the cover. */
+  /** Documents received on paper, before any file is uploaded. */
+  documentsPresent?: DocumentType[]
+
+  /* Files, uploaded straight after the property is filed. */
+  /** First photo becomes the cover. */
   photos?: File[]
+  documents?: { file: File; type: DocumentType }[]
+  videos?: File[]
 }
 
 export interface NewLeadInput {
@@ -226,6 +244,15 @@ export type PropertyPatch = Partial<
     | 'unitsSold'
     | 'photoCount'
     | 'hasVideo'
+    | 'propertyType'
+    | 'address'
+    | 'beds'
+    | 'baths'
+    | 'sqft'
+    | 'yearBuilt'
+    | 'description'
+    | 'features'
+    | 'virtualTourUrl'
   >
 > & { documentsPresent?: DocumentType[] }
 

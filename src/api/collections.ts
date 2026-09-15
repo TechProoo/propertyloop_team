@@ -196,14 +196,26 @@ export const propertiesApi = {
   },
   async create(input: NewPropertyInput): Promise<Property> {
     const { data } = await api.post<ListingDto>('/staff/listings', {
+      // The public listing, as the website's agent form sends it.
       title: input.title,
-      location: input.location,
-      chapter: input.chapter,
       type: input.type,
+      propertyType: input.propertyType,
       priceNaira: input.priceNaira,
+      address: input.address,
+      location: input.location,
+      beds: input.beds,
+      baths: input.baths,
+      sqft: input.sqft || undefined,
+      yearBuilt: input.yearBuilt || undefined,
+      description: input.description,
+      features: input.features,
+      virtualTourUrl: input.virtualTourUrl || undefined,
+      videoUrls: input.videoLinks,
+      // What only the company records.
+      chapter: input.chapter,
       units: input.units,
       dealId: input.dealId,
-      documentsPresent: input.documentsPresent,
+      ...(input.documentsPresent?.length && { documentsPresent: input.documentsPresent }),
     })
     return toProperty(data)
   },
@@ -220,6 +232,15 @@ export const propertiesApi = {
       ...(patch.priceNaira !== undefined && { priceNaira: patch.priceNaira }),
       ...(patch.units !== undefined && { units: patch.units }),
       ...(patch.unitsSold !== undefined && { unitsSold: patch.unitsSold }),
+      ...(patch.propertyType !== undefined && { propertyType: patch.propertyType }),
+      ...(patch.address !== undefined && { address: patch.address }),
+      ...(patch.beds !== undefined && { beds: patch.beds }),
+      ...(patch.baths !== undefined && { baths: patch.baths }),
+      ...(patch.sqft !== undefined && { sqft: patch.sqft }),
+      ...(patch.yearBuilt !== undefined && { yearBuilt: patch.yearBuilt ?? '' }),
+      ...(patch.description !== undefined && { description: patch.description }),
+      ...(patch.features !== undefined && { features: patch.features }),
+      ...(patch.virtualTourUrl !== undefined && { virtualTourUrl: patch.virtualTourUrl }),
       ...(patch.dealId !== undefined && { dealId: patch.dealId }),
       ...(patch.documentsPresent !== undefined && {
         documentsPresent: patch.documentsPresent,
@@ -243,6 +264,43 @@ export const propertiesApi = {
       `/staff/listings/${id}/documents/${type}`,
       { verified },
     )
+    return toProperty(data)
+  },
+  /** One document per request. The type is the one chosen, or guessed from the name. */
+  async uploadDocument(id: string, file: File, type: DocumentType): Promise<Property> {
+    const form = new FormData()
+    form.append('file', file, file.name)
+    form.append('type', type)
+    const { data } = await api.post<ListingDto>(`/staff/listings/${id}/documents`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 120_000,
+    })
+    return toProperty(data)
+  },
+  async removeDocument(id: string, docId: string): Promise<Property> {
+    const { data } = await api.delete<ListingDto>(`/staff/listings/${id}/documents/${docId}`)
+    return toProperty(data)
+  },
+  /** One video per request. Up to 50MB, so the wait can be long on an office line. */
+  async uploadVideo(
+    id: string,
+    file: File,
+    onProgress?: (percent: number) => void,
+  ): Promise<Property> {
+    const form = new FormData()
+    form.append('file', file, file.name)
+    const { data } = await api.post<ListingDto>(`/staff/listings/${id}/videos`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 30 * 60 * 1000,
+      onUploadProgress: (e) => {
+        if (e.total && onProgress) onProgress(Math.round((e.loaded / e.total) * 100))
+      },
+    })
+    return toProperty(data)
+  },
+  /** Reorder or remove videos, or add a YouTube / Vimeo link. */
+  async setVideos(id: string, videoUrls: string[]): Promise<Property> {
+    const { data } = await api.patch<ListingDto>(`/staff/listings/${id}/videos`, { videoUrls })
     return toProperty(data)
   },
   /**

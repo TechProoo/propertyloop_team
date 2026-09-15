@@ -16,9 +16,7 @@ import { useCurrentUser, useStore } from '../lib/storeContext'
 import { assignableStaff, deleteImpact, impactSentences } from '../lib/metrics'
 import {
   DEAL_KIND_LABEL,
-  DOCUMENT_TYPE_LABEL,
   LEAD_SOURCE_LABEL,
-  LISTING_TYPE_LABEL,
   MANDATE_LABEL,
   OFFLINE_LEAD_SOURCES,
 } from '../lib/types'
@@ -26,13 +24,10 @@ import type {
   Chapter,
   Deal,
   DealKind,
-  DocumentType,
   Lead,
   LeadSource,
-  ListingType,
   MandateType,
   OpsItem,
-  Property,
 } from '../lib/types'
 import { displayName } from '../lib/format'
 import {
@@ -46,7 +41,6 @@ import {
   TextInput,
   Toggle,
 } from './ui'
-import { PendingPhotos, SavedPhotos } from './PhotoManager'
 
 /** Naira typed as "145000000" or "145,000,000" — both should work. */
 function parseNaira(raw: string): number {
@@ -59,13 +53,6 @@ function parseCount(raw: string, fallback = 0): number {
   return Number.isFinite(n) && n >= 0 ? Math.round(n) : fallback
 }
 
-const DOC_TYPES: DocumentType[] = [
-  'C_OF_O',
-  'SURVEY_PLAN',
-  'BUILDING_PERMIT',
-  'RECEIPT',
-]
-
 /* ─── Danger zone ────────────────────────────────────────────────────── */
 
 /**
@@ -75,7 +62,7 @@ const DOC_TYPES: DocumentType[] = [
  * forbid it or corrupt the data silently, the impact is counted and shown,
  * and it takes a second, deliberate click.
  */
-function DangerZone({
+export function DangerZone({
   what,
   impact,
   blocked,
@@ -134,236 +121,6 @@ function DangerZone({
         </>
       )}
     </div>
-  )
-}
-
-/* ─── Property ───────────────────────────────────────────────────────── */
-
-export function PropertyForm({
-  existing,
-  onClose,
-}: {
-  existing?: Property
-  onClose: () => void
-}) {
-  const me = useCurrentUser()
-  const {
-    addProperty,
-    updateProperty,
-    deleteProperty,
-    deals,
-    properties,
-    leads,
-    shoots,
-    threads,
-  } = useStore()
-  const editing = existing !== undefined
-
-  const [title, setTitle] = useState(existing?.title ?? '')
-  const [location, setLocation] = useState(existing?.location ?? '')
-  const [chapter, setChapter] = useState<Chapter>(
-    existing?.chapter ?? (me.chapter === 'OSUN' ? 'OSUN' : 'LAGOS'),
-  )
-  const [type, setType] = useState<ListingType>(existing?.type ?? 'SALE')
-  const [price, setPrice] = useState(
-    existing ? String(existing.priceNaira) : '',
-  )
-  const [dealId, setDealId] = useState(existing?.dealId ?? '')
-  const [units, setUnits] = useState(existing ? String(existing.units) : '1')
-  const [unitsSold, setUnitsSold] = useState(
-    existing ? String(existing.unitsSold) : '0',
-  )
-  const [docs, setDocs] = useState<DocumentType[]>(
-    existing ? existing.documents.filter((d) => d.present).map((d) => d.type) : [],
-  )
-  const [newPhotos, setNewPhotos] = useState<File[]>([])
-
-  const linkable = deals.filter(
-    (d) => d.stage !== 'LOST' && d.kind !== 'ADVERTISER',
-  )
-  const valid = title.trim() !== '' && location.trim() !== '' && parseNaira(price) > 0
-
-  function toggleDoc(t: DocumentType) {
-    setDocs((prev) => (prev.includes(t) ? prev.filter((d) => d !== t) : [...prev, t]))
-  }
-
-  function submit() {
-    if (!valid) return
-    const shared = {
-      title: title.trim(),
-      location: location.trim(),
-      chapter,
-      type,
-      priceNaira: parseNaira(price),
-      // The developer is whoever signed the mandate, not a second free-text copy.
-      developer: linkable.find((d) => d.id === dealId)?.company ?? null,
-      dealId: dealId || null,
-      units: Math.max(1, parseCount(units, 1)),
-      // Counted from uploads on the listing, never typed.
-      photoCount: existing?.photoCount ?? 0,
-      documentsPresent: docs,
-    }
-    if (editing) {
-      updateProperty(existing.id, {
-        ...shared,
-        unitsSold: Math.min(parseCount(unitsSold), Math.max(1, parseCount(units, 1))),
-      })
-    } else {
-      addProperty({ ...shared, photos: newPhotos })
-    }
-    onClose()
-  }
-
-  // A live listing must be paused first. Deleting something the public site is
-  // serving should never be one click inside an edit dialog.
-  const blocked =
-    existing?.status === 'ACTIVE'
-      ? 'This listing is published on propertyloop.ng. Pause it first, then delete.'
-      : undefined
-
-  const impact = existing
-    ? impactSentences(
-        deleteImpact('PROPERTY', existing.id, { properties, leads, shoots, threads }),
-      )
-    : []
-
-  return (
-    <Modal
-      title={editing ? 'Edit property' : 'Add a property'}
-      subtitle={
-        editing
-          ? 'Changes apply immediately — verification status follows the documents'
-          : 'Filed as pending review — verification and publishing stay separate steps'
-      }
-      accent="green"
-      onClose={onClose}
-      footer={
-        <>
-          <Button variant="ghost" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button variant="primary" onClick={submit} disabled={!valid}>
-            {editing ? 'Save changes' : 'File for review'}
-          </Button>
-        </>
-      }
-    >
-      <div className="grid gap-3.5">
-        <Field label="Title">
-          <TextInput
-            value={title}
-            onChange={setTitle}
-            placeholder="3-Bed Terrace, Cedarwood Phase 2"
-          />
-        </Field>
-
-        <div className="grid gap-3.5 sm:grid-cols-2">
-          <Field label="Location">
-            <TextInput
-              value={location}
-              onChange={setLocation}
-              placeholder="Lekki Phase 1, Lagos"
-            />
-          </Field>
-          <Field label="Chapter">
-            <Select value={chapter} onChange={(v) => setChapter(v as Chapter)}>
-              <option value="LAGOS">Lagos</option>
-              <option value="OSUN">Osun</option>
-            </Select>
-          </Field>
-        </div>
-
-        <div className="grid gap-3.5 sm:grid-cols-2">
-          <Field label="Listing type">
-            <Select value={type} onChange={(v) => setType(v as ListingType)}>
-              {Object.entries(LISTING_TYPE_LABEL).map(([k, label]) => (
-                <option key={k} value={k}>
-                  {label}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <Field label={type === 'SHORTLET' ? 'Price per night (₦)' : 'Price (₦)'}>
-            <TextInput value={price} onChange={setPrice} placeholder="145,000,000" />
-          </Field>
-        </div>
-
-        <div className="grid gap-3.5">
-          <Field label="From which mandate? The developer is taken from the deal">
-            <Select value={dealId} onChange={setDealId}>
-              <option value="">Not from a deal</option>
-              {linkable.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.company}
-                </option>
-              ))}
-            </Select>
-          </Field>
-        </div>
-
-        <div className={`grid gap-3.5 ${editing ? 'sm:grid-cols-2' : ''}`}>
-          <Field label="Units">
-            <NumberInput value={units} onChange={setUnits} min={1} />
-          </Field>
-          {editing && (
-            <Field label="Units sold">
-              <NumberInput value={unitsSold} onChange={setUnitsSold} />
-            </Field>
-          )}
-        </div>
-
-        <Field label="Documents on file">
-          <div className="flex flex-wrap gap-1.5">
-            {DOC_TYPES.map((t) => (
-              <Toggle key={t} checked={docs.includes(t)} onChange={() => toggleDoc(t)}>
-                {DOCUMENT_TYPE_LABEL[t]}
-              </Toggle>
-            ))}
-          </div>
-        </Field>
-
-        <Field label="Photos">
-          {editing ? (
-            <SavedPhotos propertyId={existing.id} />
-          ) : (
-            <PendingPhotos files={newPhotos} onChange={setNewPhotos} />
-          )}
-        </Field>
-
-        {editing && (
-          <p className="text-xs text-ink-3">
-            {existing.hasVideo ? 'Video tour uploaded.' : 'No video tour yet.'}
-          </p>
-        )}
-
-        {editing ? (
-          <Note>
-            Un-ticking a document also clears its verification — a document that
-            is no longer on file cannot stay checked. Verification of the
-            remaining documents is unaffected.
-          </Note>
-        ) : (
-          <Note>
-            Documents are recorded as <strong>received but unverified</strong> —
-            somebody still has to check them. Publishing needs all four verified
-            plus at least eight photos, and this listing will be attributed to{' '}
-            <strong>{displayName(me)}</strong> as the person who sourced it.
-          </Note>
-        )}
-
-        {editing && (
-          <DangerZone
-            what="property"
-            impact={impact}
-            blocked={blocked}
-            onDelete={() => {
-              deleteProperty(existing.id)
-              onClose()
-            }}
-          />
-        )}
-      </div>
-    </Modal>
   )
 }
 

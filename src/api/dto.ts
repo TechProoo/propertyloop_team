@@ -86,6 +86,26 @@ export interface ListingDto {
   photoCount: number
   /** Already rewritten for display by the API. */
   images: string[]
+  propertyType: string
+  address: string
+  beds: number
+  baths: number
+  /** Free text, as agents enter it ("2,400"). */
+  sqft: string
+  yearBuilt: string | null
+  /** Sanitised HTML from the rich text editor. */
+  description: string
+  features: string[]
+  virtualTourUrl: string | null
+  /** Uploaded video files and YouTube / Vimeo links. */
+  videoUrls: string[]
+  documentFiles: {
+    id: string
+    type: DocumentType
+    name: string
+    url: string | null
+    verified: boolean
+  }[]
   hasVideo: boolean
   documents: { type: DocumentType; present: boolean; verified: boolean }[]
   sourcedById: string | null

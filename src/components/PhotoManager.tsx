@@ -14,7 +14,8 @@ import { shrinkForUpload } from '../lib/imageResize'
  * empty however complete its details are.
  */
 
-const MAX_PHOTOS = 30
+/** The website's agent form takes up to 10 photos. */
+const MAX_PHOTOS = 10
 
 function Tile({
   src,

@@ -211,6 +211,15 @@ export interface PropertyDoc {
   verified: boolean
 }
 
+/** An uploaded document file. Several per type are allowed. */
+export interface PropertyDocumentFile {
+  id: string
+  type: DocumentType
+  name: string
+  url: string | null
+  verified: boolean
+}
+
 export interface Property {
   id: string
   title: string
@@ -227,6 +236,20 @@ export interface Property {
   photoCount: number
   /** Display URLs, cover first. */
   images: string[]
+  propertyType: string
+  address: string
+  beds: number
+  baths: number
+  /** Free text, as agents enter it ("2,400"). */
+  sqft: string
+  yearBuilt: string | null
+  /** Sanitised HTML from the rich text editor. */
+  description: string
+  features: string[]
+  virtualTourUrl: string | null
+  /** Uploaded video files and YouTube / Vimeo links. */
+  videoUrls: string[]
+  documentFiles: PropertyDocumentFile[]
   hasVideo: boolean
   documents: PropertyDoc[]
   /**

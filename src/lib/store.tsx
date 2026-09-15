@@ -322,7 +322,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       // walk straight through the gate the whole screen exists to enforce.
       const documents: PropertyDoc[] = types.map((type) => ({
         type,
-        present: input.documentsPresent.includes(type),
+        present: (input.documentsPresent ?? []).includes(type),
         verified: false,
       }))
 
@@ -342,6 +342,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             verified: false,
             photoCount: input.photoCount,
             images: [],
+            propertyType: input.propertyType,
+            address: input.address,
+            beds: input.beds,
+            baths: input.baths,
+            sqft: input.sqft,
+            yearBuilt: input.yearBuilt || null,
+            description: input.description,
+            features: input.features,
+            virtualTourUrl: input.virtualTourUrl || null,
+            videoUrls: input.videoLinks,
+            documentFiles: [],
             hasVideo: false,
             documents,
             // Attribution is taken from who is signed in, never chosen from a
@@ -357,13 +368,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       }))
       sync(
         async () => {
-          const { photos = [], ...fields } = input
+          const { photos = [], documents = [], videos = [], ...fields } = input
           let saved = await propertiesApi.create(fields)
           // Photos need the listing to exist first. One at a time, so a
           // failure stops at the photo that failed instead of guessing.
           for (const photo of photos) {
             const { blob, name } = await shrinkForUpload(photo)
             saved = await propertiesApi.uploadPhoto(saved.id, blob, name)
+          }
+          for (const { file, type } of documents) {
+            saved = await propertiesApi.uploadDocument(saved.id, file, type)
+          }
+          for (const video of videos) {
+            saved = await propertiesApi.uploadVideo(saved.id, video)
           }
           return saved
         },
