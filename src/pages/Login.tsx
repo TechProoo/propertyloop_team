@@ -33,8 +33,8 @@ export function Login() {
     setError(null)
     setBusy(true)
     try {
-      // Staff passwords are generated from letters, digits, "-" and "#" only,
-      // so nothing a real one contains is touched here. What this undoes is a
+      // Staff passwords are generated from letters, digits and "-" only, so
+      // nothing a real one contains is touched here. What this undoes is a
       // phone keyboard's doing: a space added by an accepted suggestion, or a
       // hyphen swapped for a dash — invisible on screen, and enough to fail.
       const typed = password.trim().replace(/[‐-―−]/g, '-')
@@ -42,7 +42,14 @@ export function Login() {
       // No navigate() — the router swaps to the portal as soon as the auth
       // context holds an account.
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not sign you in.')
+      const message = err instanceof Error ? err.message : 'Could not sign you in.'
+      // The server's wording is deliberately vague. The usual real cause is
+      // one letter typed in the wrong case — say so, and say what to do next.
+      setError(
+        /invalid email or password/i.test(message)
+          ? 'That email and password do not match. Passwords are case-sensitive, so check capital and small letters. If it still fails, ask the MD to reset your password from the Team screen.'
+          : message,
+      )
       setPassword('')
     } finally {
       setBusy(false)

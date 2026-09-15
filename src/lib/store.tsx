@@ -92,6 +92,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [provisioned, setProvisioned] = useState<{
+    kind: 'new' | 'reset'
     name: string
     email: string
     temporaryPassword: string
@@ -990,6 +991,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         ({ staff: saved, temporaryPassword }) => {
           linkId(id, saved.id)
           setProvisioned({
+            kind: 'new',
             name: saved.name ?? `Staff ${saved.letter}`,
             email: saved.email ?? '',
             temporaryPassword,
@@ -1023,6 +1025,25 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         staff: prev.staff.map((sm) => (sm.id === id ? { ...sm, active } : sm)),
       }))
       sync(() => staffApi.setActive(remoteId(id), active))
+    },
+    [sync, remoteId],
+  )
+
+  const resetStaffPassword = useCallback(
+    (id: string) => {
+      // Nothing to show optimistically: the password only exists once the
+      // server has made it.
+      sync(
+        () => staffApi.resetPassword(remoteId(id)),
+        ({ staff: saved, temporaryPassword }) => {
+          setProvisioned({
+            kind: 'reset',
+            name: saved.name ?? `Staff ${saved.letter}`,
+            email: saved.email ?? '',
+            temporaryPassword,
+          })
+        },
+      )
     },
     [sync, remoteId],
   )
@@ -1514,6 +1535,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     addStaff,
     updateStaff,
     setStaffActive,
+    resetStaffPassword,
     propertyById,
     dealById,
     leadById,

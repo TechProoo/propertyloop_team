@@ -6,7 +6,7 @@
 
 import { useEffect, useState } from 'react'
 import { AlertTriangle } from 'lucide-react'
-import { useStore } from '../lib/storeContext'
+import { useCurrentUser, useStore } from '../lib/storeContext'
 import { productionApi } from '../api/collections'
 import {
   CONTENT_CHANNEL_LABEL,
@@ -647,7 +647,8 @@ export function StaffForm({
   existing?: Staff
   onClose: () => void
 }) {
-  const { addStaff, updateStaff, setStaffActive, staff } = useStore()
+  const { addStaff, updateStaff, setStaffActive, resetStaffPassword, staff } = useStore()
+  const me = useCurrentUser()
   const editing = existing !== undefined
 
   const [name, setName] = useState(existing?.name ?? '')
@@ -761,6 +762,46 @@ export function StaffForm({
           this interface only; it does not secure the API until staff
           permissions exist there.
         </Note>
+
+        {editing && existing.email && (
+          <div className="mt-2 rounded-xl border border-line bg-surface-2/40 p-3.5">
+            <h3 className="text-xs font-semibold tracking-wider text-ink-2 uppercase">
+              Password
+            </h3>
+            {existing.id === me.id ? (
+              <p className="mt-2 text-xs leading-relaxed text-ink-2">
+                To change your own password, use the key button next to your
+                name in the menu.
+              </p>
+            ) : (
+              <>
+                <p className="mt-2 text-xs leading-relaxed text-ink-2">
+                  If {displayName(existing)} cannot sign in, issue a new temporary
+                  password. Their current one stops working and they are signed out
+                  everywhere. You will see the new one once, on the Team screen.
+                </p>
+                <div className="mt-3">
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => {
+                      if (
+                        window.confirm(
+                          `Reset ${displayName(existing)}'s password? Their current password will stop working.`,
+                        )
+                      ) {
+                        resetStaffPassword(existing.id)
+                        onClose()
+                      }
+                    }}
+                  >
+                    Reset password
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
 
         {editing && (
           <div className="mt-2 rounded-xl border border-line bg-surface-2/40 p-3.5">

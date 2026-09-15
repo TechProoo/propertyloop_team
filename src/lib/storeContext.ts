@@ -69,7 +69,13 @@ export interface StoreValue extends PersistedData {
    * password. Memory only, and only until dismissed: the server keeps nothing
    * readable, so this is the one chance to hand it over.
    */
-  provisioned: { name: string; email: string; temporaryPassword: string } | null
+  provisioned: {
+    /** 'new' after Add position, 'reset' after Reset password. */
+    kind: 'new' | 'reset'
+    name: string
+    email: string
+    temporaryPassword: string
+  } | null
   dismissProvisioned: () => void
 
   staffById: (id: string | null) => Staff | null
@@ -136,6 +142,8 @@ export interface StoreValue extends PersistedData {
   addStaff: (input: NewStaffInput) => string
   updateStaff: (id: string, patch: StaffPatch) => void
   setStaffActive: (id: string, active: boolean) => void
+  /** New temporary password, shown through `provisioned`. Not optimistic. */
+  resetStaffPassword: (id: string) => void
 
   moveDeal: (dealId: string, stage: DealStage) => void
   setPropertyStatus: (propertyId: string, status: ListingStatus) => void

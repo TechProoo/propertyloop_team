@@ -65,7 +65,9 @@ export function Team() {
             <KeyRound size={16} className="mt-0.5 shrink-0 text-[color:var(--color-accent)]" />
             <div className="min-w-0 flex-1">
               <h2 className="text-sm font-semibold text-ink">
-                {provisioned.name} can now sign in
+                {provisioned.kind === 'reset'
+                  ? `${provisioned.name}'s password has been reset`
+                  : `${provisioned.name} can now sign in`}
               </h2>
               <p className="mt-1 text-xs leading-relaxed text-ink-2">
                 Email <strong className="font-medium text-ink">{provisioned.email}</strong>,
@@ -75,8 +77,11 @@ export function Team() {
                 </code>
               </p>
               <p className="mt-1.5 text-xs leading-relaxed text-ink-3">
-                Send it to them privately, not to a group chat. It is shown this once:
-                the server keeps only a hash, so closing this is final.
+                Send it to them privately, not to a group chat. It is all small
+                letters, digits and hyphens. It is shown this once: the server keeps
+                only a hash, so closing this is final.
+                {provisioned.kind === 'reset' &&
+                  ' Their old password no longer works, and any device they were signed in on has been signed out.'}
               </p>
             </div>
             <Button size="sm" variant="ghost" onClick={dismissProvisioned}>

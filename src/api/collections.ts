@@ -125,6 +125,17 @@ export const staffApi = {
       temporaryPassword: data.temporaryPassword,
     }
   },
+  /**
+   * A new temporary password for someone who cannot sign in. Returned once,
+   * like provision; the person is signed out everywhere.
+   */
+  async resetPassword(id: string): Promise<{ staff: Staff; temporaryPassword: string }> {
+    const { data } = await api.post<{ staff: StaffDto; temporaryPassword: string }>(
+      `/staff/${id}/reset-password`,
+      {},
+    )
+    return { staff: toStaff(data.staff), temporaryPassword: data.temporaryPassword }
+  },
   async update(id: string, patch: StaffPatch): Promise<Staff> {
     const { data } = await api.patch<StaffDto>(`/staff/${id}`, {
       ...(patch.role !== undefined && { staffRole: patch.role }),

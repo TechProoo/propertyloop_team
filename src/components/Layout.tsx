@@ -8,6 +8,7 @@ import {
   Handshake,
   LayoutDashboard,
   Contact,
+  KeyRound,
   LogOut,
   Menu,
   MessageSquare,
@@ -26,6 +27,7 @@ import { displayName, initials, isoDate } from '../lib/format'
 import { useDocumentTitle } from '../lib/title'
 import { STAFF_ROLE_SHORT } from '../lib/types'
 import { Avatar } from './ui'
+import { ChangePassword } from './ChangePassword'
 import type { Accent } from '../lib/accent'
 
 interface NavItem {
@@ -108,6 +110,7 @@ export function Layout() {
   const navigate = useNavigate()
   const location = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [changingPassword, setChangingPassword] = useState(false)
 
   // Derived from NAV rather than written out again, so a renamed section
   // cannot end up with a tab title that disagrees with its own nav entry.
@@ -218,6 +221,18 @@ export function Layout() {
       </div>
       <button
         type="button"
+        onClick={() => {
+          setMenuOpen(false)
+          setChangingPassword(true)
+        }}
+        title="Change password"
+        aria-label="Change password"
+        className="rounded-lg p-1.5 text-white/55 transition-colors hover:bg-white/10 hover:text-white"
+      >
+        <KeyRound size={16} strokeWidth={1.75} />
+      </button>
+      <button
+        type="button"
         onClick={handleSignOut}
         title="Sign out"
         className="rounded-lg p-1.5 text-white/55 transition-colors hover:bg-white/10 hover:text-white"
@@ -232,6 +247,7 @@ export function Layout() {
 
   return (
     <div className="flex min-h-full">
+      {changingPassword && <ChangePassword onClose={() => setChangingPassword(false)} />}
       {/* Desktop sidebar. self-start stops the flex row stretching it to the
           full page height, which would leave nothing for sticky to pin. */}
       <aside
