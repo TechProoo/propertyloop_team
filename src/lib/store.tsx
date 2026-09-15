@@ -89,7 +89,14 @@ const EMPTY_INDEX: StaffIndex = { staffId: new Map(), userId: new Map() }
 
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [data, setData] = useState<PersistedData>(EMPTY)
-  const [loading, setLoading] = useState(true)
+  // A reload after a failed write. The page stays up while it runs.
+  const [reloading, setReloading] = useState(false)
+  // Whose data is on screen. Loading is derived from this rather than kept as
+  // a flag: a flag that starts true is cleared by the signed-out pass before
+  // anyone has signed in, and nothing set it again when the account arrived —
+  // so every page rendered its empty state ("No threads here") while the
+  // real data was still on its way.
+  const [loadedKey, setLoadedKey] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [provisioned, setProvisioned] = useState<{
     kind: 'new' | 'reset'
@@ -111,6 +118,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   )
 
   const signedIn = Boolean(account?.staffProfile)
+  // Changes with the account and with its permissions, either of which
+  // changes what there is to load.
+  const loadKey = signedIn
+    ? `${account?.id}:${(account?.staffProfile?.permissions ?? []).join(',')}`
+    : 'signed-out'
   // A string, not the array: a fresh array per render would rebuild fetchAll
   // and re-run the load effect on every render.
   const grantKey = (account?.staffProfile?.permissions ?? []).join(',')
@@ -196,18 +208,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   /** Re-read everything. Used by the error banner and after a failed write. */
   const load = useCallback(async () => {
     if (!signedIn) return
-    setLoading(true)
+    setReloading(true)
     try {
       apply(await fetchAll())
     } catch (e) {
       setError(apiErrorMessage(e, 'Could not load the portal'))
     } finally {
-      setLoading(false)
+      setReloading(false)
     }
   }, [signedIn, fetchAll, apply])
 
   useEffect(() => {
     let alive = true
+    const key = loadKey
     void (async () => {
       try {
         // Always awaited, signed in or not, so nothing is set synchronously
@@ -219,7 +232,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       } catch (e) {
         if (alive) setError(apiErrorMessage(e, 'Could not load the portal'))
       } finally {
-        if (alive) setLoading(false)
+        // Set on failure too, so the error banner replaces the loader
+        // instead of the loader spinning for ever.
+        if (alive) setLoadedKey(key)
       }
     })()
     // Signing out mid-flight, or switching accounts, must not let the older
@@ -227,7 +242,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return () => {
       alive = false
     }
-  }, [signedIn, fetchAll, apply])
+  }, [signedIn, loadKey, fetchAll, apply])
+
+  const loading = reloading || loadedKey !== loadKey
 
   /**
    * Run a write, and if it fails say so and reload.
