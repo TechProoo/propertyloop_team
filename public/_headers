@@ -27,3 +27,8 @@
   Cache-Control: public, max-age=86400
 /apple-touch-icon.png
   Cache-Control: public, max-age=86400
+
+# The notification service worker. Browsers check it for updates, and a
+# cached copy would keep an old one running.
+/sw.js
+  Cache-Control: no-cache

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
   AlertTriangle,
@@ -10,6 +10,7 @@ import {
   Contact,
   KeyRound,
   LogOut,
+  Smartphone,
   Menu,
   MessageSquare,
   NotebookPen,
@@ -28,6 +29,8 @@ import { useDocumentTitle } from '../lib/title'
 import { STAFF_ROLE_SHORT } from '../lib/types'
 import { Avatar } from './ui'
 import { ChangePassword } from './ChangePassword'
+import { PhoneAppModal } from './PhoneApp'
+import { disablePush, syncPush } from '../lib/push'
 import type { Accent } from '../lib/accent'
 
 interface NavItem {
@@ -111,6 +114,14 @@ export function Layout() {
   const location = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
   const [changingPassword, setChangingPassword] = useState(false)
+  const [phoneOpen, setPhoneOpen] = useState(false)
+
+  // Re-send this device's notification subscription once signed in, so a
+  // shared phone notifies whoever is using it now.
+  const signedInId = currentUser?.id
+  useEffect(() => {
+    if (signedInId) syncPush().catch(() => undefined)
+  }, [signedInId])
 
   // Derived from NAV rather than written out again, so a renamed section
   // cannot end up with a tab title that disagrees with its own nav entry.
@@ -148,6 +159,9 @@ export function Layout() {
   }
 
   async function handleSignOut() {
+    // While still signed in: afterwards the server cannot tell whose device
+    // to forget, and the next person on this phone would get these alerts.
+    await disablePush().catch(() => undefined)
     await signOut()
     navigate('/login')
   }
@@ -223,6 +237,18 @@ export function Layout() {
         type="button"
         onClick={() => {
           setMenuOpen(false)
+          setPhoneOpen(true)
+        }}
+        title="Phone app & notifications"
+        aria-label="Phone app & notifications"
+        className="rounded-lg p-1.5 text-white/55 transition-colors hover:bg-white/10 hover:text-white"
+      >
+        <Smartphone size={16} strokeWidth={1.75} />
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          setMenuOpen(false)
           setChangingPassword(true)
         }}
         title="Change password"
@@ -248,6 +274,7 @@ export function Layout() {
   return (
     <div className="flex min-h-full">
       {changingPassword && <ChangePassword onClose={() => setChangingPassword(false)} />}
+      {phoneOpen && <PhoneAppModal onClose={() => setPhoneOpen(false)} />}
       {/* Desktop sidebar. self-start stops the flex row stretching it to the
           full page height, which would leave nothing for sticky to pin. */}
       <aside

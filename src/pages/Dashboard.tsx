@@ -48,6 +48,7 @@ import {
   Stat,
 } from '../components/ui'
 import { OperationsView } from '../components/OperationsView'
+import { PhoneAppBanner } from '../components/PhoneApp'
 
 export function Dashboard() {
   const me = useCurrentUser()
@@ -66,6 +67,7 @@ export function Dashboard() {
   return (
     <>
       <Hero />
+      <PhoneAppBanner />
 
       {runsOps ? (
         <OperationsView />
