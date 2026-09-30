@@ -102,6 +102,27 @@ export function Properties() {
 
   const sourcers = [...new Set(properties.map((p) => p.sourcedById))]
 
+  /**
+   * Publishing is not gated on photos and documents. Whoever holds the
+   * permission decides — a listing can be worth putting up before its papers
+   * are filed. What is missing is still said plainly on the row and once more
+   * here, because a listing with no photos reads as broken on the website.
+   */
+  function publish(property: Property) {
+    const missing = publishBlockers(property)
+    if (
+      missing.length > 0 &&
+      !window.confirm(
+        `Publish "${property.title}" to the website and app with ${missing
+          .join(' and ')
+          .toLowerCase()}?`,
+      )
+    ) {
+      return
+    }
+    setPropertyStatus(property.id, 'ACTIVE')
+  }
+
   return (
     <>
       <PageHeader
@@ -140,9 +161,9 @@ export function Properties() {
           icon={Image}
         />
         <Stat
-          label="Blocked"
+          label="Incomplete"
           value={blocked.length}
-          sub="Missing photos or documents"
+          sub="Missing photos or documents — can still be published"
           tone={blocked.length > 0 ? 'warn' : 'default'}
           icon={FileWarning}
         />
@@ -293,29 +314,29 @@ export function Properties() {
                             </button>
                           )}
                         </span>
-                        {p.status === 'PENDING_REVIEW' &&
-                          (blockers.length === 0 ? (
-                            canPublish ? (
+                        {p.status === 'PENDING_REVIEW' && (
+                          <span className="flex flex-col items-end gap-1">
+                            {canPublish ? (
                               <Button
                                 size="sm"
                                 variant="primary"
-                                onClick={() => setPropertyStatus(p.id, 'ACTIVE')}
+                                onClick={() => publish(p)}
                               >
                                 Publish
                               </Button>
                             ) : (
-                              <Badge tone="ok">Ready</Badge>
-                            )
-                          ) : (
-                            <span
-                              title={blockers.join(' · ')}
-                              className="inline-flex items-center gap-1 text-xs text-[color:var(--color-warn)]"
-                            >
-                              <FileWarning size={13} />
-                              {blockers.length} blocker
-                              {blockers.length === 1 ? '' : 's'}
-                            </span>
-                          ))}
+                              blockers.length === 0 && <Badge tone="ok">Ready</Badge>
+                            )}
+                            {/* Spelled out rather than hidden in a tooltip —
+                                there is no hover on a phone. */}
+                            {blockers.length > 0 && (
+                              <span className="inline-flex items-start gap-1 text-right text-[11px] leading-tight text-[color:var(--color-warn)]">
+                                <FileWarning size={12} className="mt-px shrink-0" />
+                                {blockers.join(' · ')}
+                              </span>
+                            )}
+                          </span>
+                        )}
                         {p.status === 'ACTIVE' && canPublish && (
                           <Button size="sm" onClick={() => setPropertyStatus(p.id, 'PAUSED')}>
                             Pause
@@ -354,9 +375,10 @@ export function Properties() {
       <div className="mt-6">
         <Note>
           A property counts as verified only when all four documents are
-          present and checked. Publishing is gated on that plus photographs —
-          the gate exists here so "we have properties" becomes a number
-          somebody can audit. The <code>sourcedById</code> field driving the
+          present and checked. Publishing is not blocked by that — whoever
+          holds the permission decides, and anything missing is named on the
+          row and confirmed before it goes live — so "verified" stays a number
+          somebody can audit rather than a gate. The <code>sourcedById</code> field driving the
           attribution column has no equivalent in the Prisma schema yet;
           adding it is what makes each person's acquisition figure verifiable.
         </Note>

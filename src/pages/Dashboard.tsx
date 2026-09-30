@@ -264,7 +264,7 @@ function ManagementView({
 
       <div className="pl-stagger mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Stat
-          label="Blocked listings"
+          label="Incomplete listings"
           value={s.propertiesBlocked}
           sub="Pending review, missing photos or documents"
           to="/properties"
