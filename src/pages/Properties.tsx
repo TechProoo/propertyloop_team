@@ -5,6 +5,7 @@ import {
   Check,
   FileWarning,
   Image,
+  Link2,
   Pencil,
   Plus,
   Rocket,
@@ -301,6 +302,7 @@ export function Properties() {
                       </Td>
                       <Td className="text-right whitespace-nowrap">
                         <span className="mr-1.5 inline-flex items-center gap-0.5 align-middle">
+                          <CopyLink propertyId={p.id} title={p.title} />
                           <DiscussButton kind="PROPERTY" id={p.id} compact />
                           {canAdd && (
                             <button
@@ -384,6 +386,44 @@ export function Properties() {
         </Note>
       </div>
     </>
+  )
+}
+
+const SITE = 'https://propertyloop.ng'
+
+function CopyLink({ propertyId, title }: { propertyId: string; title: string }) {
+  const [copied, setCopied] = useState(false)
+  const url = `${SITE}/property/${propertyId}`
+  return (
+    <button
+      type="button"
+      onClick={async () => {
+        try {
+          await navigator.clipboard.writeText(url)
+        } catch {
+          // Fallback for older browsers / insecure contexts
+          const ta = document.createElement('textarea')
+          ta.value = url
+          ta.style.position = 'fixed'
+          ta.style.opacity = '0'
+          document.body.appendChild(ta)
+          ta.select()
+          document.execCommand('copy')
+          document.body.removeChild(ta)
+        }
+        setCopied(true)
+        setTimeout(() => setCopied(false), 1800)
+      }}
+      aria-label={`Copy link for ${title}`}
+      title={copied ? 'Copied!' : 'Copy link for social media'}
+      className={`rounded-lg p-1.5 transition-colors ${
+        copied
+          ? 'text-primary bg-primary/10'
+          : 'text-ink-3 hover:bg-surface-2 hover:text-primary'
+      }`}
+    >
+      {copied ? <Check size={13} strokeWidth={2} /> : <Link2 size={13} strokeWidth={2} />}
+    </button>
   )
 }
 
