@@ -16,6 +16,7 @@ import {
   MessageSquare,
   NotebookPen,
   Send,
+  Store,
   Target as TargetIcon,
   Users,
   X,
@@ -89,6 +90,13 @@ const NAV: NavItem[] = [
     accent: 'teal',
     // The partner directory needs its own grant; leads access does not load it.
     permissions: ['MANAGE_PARTNERS'],
+  },
+  {
+    to: '/marketplace',
+    label: 'Marketplace',
+    icon: Store,
+    accent: 'gold',
+    permissions: ['MANAGE_MARKETPLACE'],
   },
   { to: '/threads', label: 'Threads', icon: MessageSquare, accent: 'teal', permissions: [] },
   { to: '/messages', label: 'Messages', icon: Send, accent: 'teal', permissions: [] },

@@ -22,6 +22,7 @@ import { Messages } from './pages/Messages'
 import { Targets } from './pages/Targets'
 import { Team } from './pages/Team'
 import { Partners } from './pages/Partners'
+import { Marketplace } from './pages/Marketplace'
 
 /** Redirects to sign-in when nobody is selected. */
 function RequireAuth({ children }: { children: ReactElement }) {
@@ -118,6 +119,14 @@ function Router() {
           element={
             <RequirePermission permissions={['MANAGE_PARTNERS']}>
               <Partners />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="marketplace"
+          element={
+            <RequirePermission permissions={['MANAGE_MARKETPLACE']}>
+              <Marketplace />
             </RequirePermission>
           }
         />

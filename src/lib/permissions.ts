@@ -47,6 +47,8 @@ export const Permission = {
   MANAGE_PARTNERS: 'MANAGE_PARTNERS',
   /** Sign off a partner commission for payment. */
   APPROVE_COMMISSION: 'APPROVE_COMMISSION',
+  /** Run the product marketplace — stores, commission, orders, refunds, disputes. */
+  MANAGE_MARKETPLACE: 'MANAGE_MARKETPLACE',
 } as const
 export type Permission = (typeof Permission)[keyof typeof Permission]
 
@@ -69,6 +71,7 @@ export const PERMISSION_LABEL: Record<Permission, string> = {
   MANAGE_STAFF: 'Manage staff',
   MANAGE_PARTNERS: 'Manage agent partners',
   APPROVE_COMMISSION: 'Approve partner commissions',
+  MANAGE_MARKETPLACE: 'Manage marketplace',
 }
 
 /** Permissions that move money or touch identity documents. */
@@ -78,6 +81,7 @@ export const SENSITIVE_PERMISSIONS: Permission[] = [
   'REVIEW_KYC',
   'RESOLVE_DISPUTE',
   'MANAGE_STAFF',
+  'MANAGE_MARKETPLACE',
 ]
 
 const ALL: Permission[] = Object.values(Permission)
