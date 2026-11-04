@@ -8,9 +8,9 @@
 import axios from 'axios'
 import type { AxiosError, InternalAxiosRequestConfig } from 'axios'
 import { trackActivity } from './network'
+import { API_BASE, resolveApiUrl } from './endpoint'
 
-export const API_BASE =
-  import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api'
+export { API_BASE } from './endpoint'
 
 /**
  * Where the calls that carry the refresh cookie go.
@@ -24,7 +24,7 @@ export const API_BASE =
  * Only these three go this way. Everything else, uploads included, still
  * goes direct, so large files never pass through the proxy.
  */
-export const AUTH_BASE: string = import.meta.env.VITE_AUTH_URL ?? API_BASE
+export const AUTH_BASE: string = resolveApiUrl(import.meta.env.VITE_AUTH_URL ?? API_BASE)
 const COOKIE_AUTH_CALL = /^\/auth\/(login|refresh|logout)(?:[/?]|$)/
 
 const api = axios.create({
